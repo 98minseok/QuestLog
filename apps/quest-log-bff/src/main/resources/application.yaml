@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: quest-log-bff
+
+server:
+  port: 8082
+
+backend:
+  base-url: http://localhost:8081
