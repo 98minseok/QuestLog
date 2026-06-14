@@ -11,9 +11,11 @@ import java.util.List;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -48,21 +50,41 @@ public class DashboardController {
     @PostMapping("/goals")
     @ResponseStatus(HttpStatus.CREATED)
     public DashboardResponse.Goal createGoal(@Valid @RequestBody GoalRequest request) {
-        return backendRestClient.post()
-                .uri("/api/be/goals")
-                .body(request)
-                .retrieve()
-                .body(DashboardResponse.Goal.class);
+        return dashboardService.createGoal(request);
+    }
+
+    @PutMapping("/goals/{goalId}")
+    public DashboardResponse.Goal updateGoal(
+            @PathVariable long goalId,
+            @Valid @RequestBody GoalRequest request
+    ) {
+        return dashboardService.updateGoal(goalId, request);
+    }
+
+    @DeleteMapping("/goals/{goalId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteGoal(@PathVariable long goalId) {
+        dashboardService.deleteGoal(goalId);
     }
 
     @PostMapping("/daily-tasks")
     @ResponseStatus(HttpStatus.CREATED)
     public DashboardResponse.DailyTask createDailyTask(@Valid @RequestBody DailyTaskRequest request) {
-        return backendRestClient.post()
-                .uri("/api/be/daily-tasks")
-                .body(request)
-                .retrieve()
-                .body(DashboardResponse.DailyTask.class);
+        return dashboardService.createDailyTask(request);
+    }
+
+    @PutMapping("/daily-tasks/{taskId}")
+    public DashboardResponse.DailyTask updateDailyTask(
+            @PathVariable long taskId,
+            @Valid @RequestBody DailyTaskRequest request
+    ) {
+        return dashboardService.updateDailyTask(taskId, request);
+    }
+
+    @DeleteMapping("/daily-tasks/{taskId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteDailyTask(@PathVariable long taskId) {
+        dashboardService.deleteDailyTask(taskId);
     }
 
     @PostMapping("/goals/{goalId}/recommendations")

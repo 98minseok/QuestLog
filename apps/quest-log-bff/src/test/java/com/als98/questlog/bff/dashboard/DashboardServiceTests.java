@@ -3,9 +3,13 @@ package com.als98.questlog.bff.dashboard;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
+import static org.springframework.http.HttpMethod.DELETE;
+import static org.springframework.http.HttpMethod.PUT;
 import static org.springframework.test.web.client.ExpectedCount.once;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withNoContent;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import com.als98.questlog.bff.config.BackendProperties;
@@ -99,6 +103,93 @@ class DashboardServiceTests {
         assertThat(result.status()).isEqualTo("VICTORY");
         assertThat(result.xpAwarded()).isEqualTo(50);
         assertThat(result.totalXp()).isEqualTo(175);
+        backend.verify();
+    }
+
+    @Test
+    void proxiesGoalUpdateAndDelete() {
+        DashboardController.GoalRequest request = new DashboardController.GoalRequest(
+                "Ship MVP",
+                "Finish the playable loop",
+                "ARCHIVED",
+                LocalDate.of(2026, 7, 1)
+        );
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/goals/3"))
+                .andExpect(method(PUT))
+                .andExpect(content().json("""
+                        {
+                          "title":"Ship MVP",
+                          "description":"Finish the playable loop",
+                          "status":"ARCHIVED",
+                          "targetDate":"2026-07-01"
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                          "id":3,
+                          "title":"Ship MVP",
+                          "description":"Finish the playable loop",
+                          "status":"ARCHIVED",
+                          "targetDate":"2026-07-01",
+                          "createdAt":"2026-06-14T09:00:00Z",
+                          "updatedAt":"2026-06-15T09:00:00Z"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/goals/3"))
+                .andExpect(method(DELETE))
+                .andRespond(withNoContent());
+
+        DashboardResponse.Goal updated = dashboardService.updateGoal(3, request);
+        dashboardService.deleteGoal(3);
+
+        assertThat(updated.status()).isEqualTo("ARCHIVED");
+        backend.verify();
+    }
+
+    @Test
+    void proxiesDailyTaskUpdateAndDelete() {
+        DashboardController.DailyTaskRequest request = new DashboardController.DailyTaskRequest(
+                3L,
+                "Polish dashboard",
+                "Finish responsive behavior",
+                LocalDate.of(2026, 6, 15),
+                "SKIPPED",
+                25
+        );
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/daily-tasks/7"))
+                .andExpect(method(PUT))
+                .andExpect(content().json("""
+                        {
+                          "goalId":3,
+                          "title":"Polish dashboard",
+                          "description":"Finish responsive behavior",
+                          "taskDate":"2026-06-15",
+                          "status":"SKIPPED",
+                          "xpReward":25
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                          "id":7,
+                          "goalId":3,
+                          "title":"Polish dashboard",
+                          "description":"Finish responsive behavior",
+                          "taskDate":"2026-06-15",
+                          "status":"SKIPPED",
+                          "source":"MANUAL",
+                          "xpReward":25,
+                          "createdAt":"2026-06-15T09:00:00Z",
+                          "updatedAt":"2026-06-15T10:00:00Z"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/daily-tasks/7"))
+                .andExpect(method(DELETE))
+                .andRespond(withNoContent());
+
+        DashboardResponse.DailyTask updated = dashboardService.updateDailyTask(7, request);
+        dashboardService.deleteDailyTask(7);
+
+        assertThat(updated.status()).isEqualTo("SKIPPED");
         backend.verify();
     }
 

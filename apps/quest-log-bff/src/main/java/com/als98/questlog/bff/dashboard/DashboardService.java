@@ -69,4 +69,58 @@ public class DashboardService {
                 .retrieve()
                 .body(DashboardResponse.RaidAttemptResult.class);
     }
+
+    public DashboardResponse.Goal createGoal(DashboardController.GoalRequest request) {
+        return backendRestClient.post()
+                .uri("/api/be/goals")
+                .body(request)
+                .retrieve()
+                .body(DashboardResponse.Goal.class);
+    }
+
+    public DashboardResponse.Goal updateGoal(
+            long goalId,
+            DashboardController.GoalRequest request
+    ) {
+        return backendRestClient.put()
+                .uri("/api/be/goals/{goalId}", goalId)
+                .body(request)
+                .retrieve()
+                .body(DashboardResponse.Goal.class);
+    }
+
+    public void deleteGoal(long goalId) {
+        backendRestClient.delete()
+                .uri("/api/be/goals/{goalId}", goalId)
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    public DashboardResponse.DailyTask createDailyTask(
+            DashboardController.DailyTaskRequest request
+    ) {
+        return backendRestClient.post()
+                .uri("/api/be/daily-tasks")
+                .body(request)
+                .retrieve()
+                .body(DashboardResponse.DailyTask.class);
+    }
+
+    public DashboardResponse.DailyTask updateDailyTask(
+            long taskId,
+            DashboardController.DailyTaskRequest request
+    ) {
+        return backendRestClient.put()
+                .uri("/api/be/daily-tasks/{taskId}", taskId)
+                .body(request)
+                .retrieve()
+                .body(DashboardResponse.DailyTask.class);
+    }
+
+    public void deleteDailyTask(long taskId) {
+        backendRestClient.delete()
+                .uri("/api/be/daily-tasks/{taskId}", taskId)
+                .retrieve()
+                .toBodilessEntity();
+    }
 }
