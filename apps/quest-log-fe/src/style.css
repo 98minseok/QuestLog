@@ -352,6 +352,28 @@ form button {
   min-height: 400px;
 }
 
+.filter-bar {
+  display: flex;
+  gap: 6px;
+  margin: -8px 0 16px;
+  overflow-x: auto;
+}
+
+.filter-bar button {
+  padding: 6px 9px;
+  border: 1px solid #34413e;
+  color: #81908c;
+  background: transparent;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+}
+
+.filter-bar button.active {
+  border-color: #e7ff54;
+  color: #10140e;
+  background: #e7ff54;
+}
+
 .task-form select {
   max-width: 190px;
 }

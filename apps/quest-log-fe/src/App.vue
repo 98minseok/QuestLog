@@ -13,6 +13,12 @@ const TASK_STATUS = {
   skipped: 'SKIPPED',
 } as const
 
+const TASK_FILTERS = ['ALL', ...Object.values(TASK_STATUS)] as const
+
+type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS]
+type TaskFilter = (typeof TASK_FILTERS)[number]
+type TaskSource = 'AI_RECOMMENDED' | 'MANUAL'
+
 type Goal = {
   id: number
   title: string
@@ -27,8 +33,8 @@ type DailyTask = {
   title: string
   description: string | null
   taskDate: string
-  status: string
-  source: string
+  status: TaskStatus
+  source: TaskSource
   xpReward: number
 }
 
@@ -83,6 +89,7 @@ const attempts = ref<RaidAttempt[]>([])
 const newGoalTitle = ref('')
 const newTaskTitle = ref('')
 const selectedGoalId = ref<number | null>(null)
+const taskFilter = ref<TaskFilter>('ALL')
 const editingGoalId = ref<number | null>(null)
 const goalDraft = ref({
   title: '',
@@ -107,6 +114,16 @@ const taskGoalOptions = computed(() =>
 )
 const completedTaskCount = computed(
   () => tasks.value.filter((task) => task.status === TASK_STATUS.completed).length,
+)
+const filteredTasks = computed(() =>
+  taskFilter.value === 'ALL'
+    ? tasks.value
+    : tasks.value.filter((task) => task.status === taskFilter.value),
+)
+const filteredTasksEmptyMessage = computed(() =>
+  tasks.value.length === 0
+    ? 'No quests for today. Add one or ask for a recommendation.'
+    : `No ${taskFilter.value.toLowerCase()} quests for today.`,
 )
 const progressPercent = computed(() => character.value?.currentLevelXp ?? 0)
 const clearedRaidIds = computed(
@@ -252,6 +269,15 @@ function startTaskEdit(task: DailyTask) {
 
 function cancelTaskEdit() {
   editingTaskId.value = null
+}
+
+function isPendingTask(task: DailyTask) {
+  return task.status === TASK_STATUS.pending
+}
+
+function taskSourceLabel(task: DailyTask) {
+  if (task.status === TASK_STATUS.skipped) return 'SKIPPED'
+  return task.source === 'AI_RECOMMENDED' ? 'MOCK AI' : 'MANUAL'
 }
 
 async function saveTask(task: DailyTask) {
@@ -527,6 +553,19 @@ onMounted(loadDashboard)
                 <span class="count">{{ tasks.length }}</span>
               </div>
 
+              <div class="filter-bar" aria-label="Daily task status filter">
+                <button
+                  v-for="filter in TASK_FILTERS"
+                  :key="filter"
+                  type="button"
+                  :class="{ active: taskFilter === filter }"
+                  :aria-pressed="taskFilter === filter"
+                  @click="taskFilter = filter"
+                >
+                  {{ filter }}
+                </button>
+              </div>
+
               <form class="task-form" @submit.prevent="createTask">
                 <input v-model="newTaskTitle" placeholder="Add today’s task" maxlength="200" />
                 <select v-model="selectedGoalId">
@@ -540,7 +579,7 @@ onMounted(loadDashboard)
 
               <div class="task-list">
                 <div
-                  v-for="task in tasks"
+                  v-for="task in filteredTasks"
                   :key="task.id"
                   class="task-item"
                   :class="{
@@ -597,19 +636,11 @@ onMounted(loadDashboard)
                     </button>
                     <div class="task-copy">
                       <strong>{{ task.title }}</strong>
-                      <span>
-                        {{
-                          task.status === TASK_STATUS.skipped
-                            ? 'SKIPPED'
-                            : task.source === 'AI_RECOMMENDED'
-                              ? 'MOCK AI'
-                              : 'MANUAL'
-                        }}
-                      </span>
+                      <span>{{ taskSourceLabel(task) }}</span>
                     </div>
                     <b>+{{ task.xpReward }} XP</b>
                     <button
-                      v-if="task.status === TASK_STATUS.pending"
+                      v-if="isPendingTask(task)"
                       class="text-button muted"
                       :disabled="actionPending"
                       @click="skipPendingTask(task)"
@@ -617,7 +648,7 @@ onMounted(loadDashboard)
                       Skip
                     </button>
                     <button
-                      v-if="task.status === TASK_STATUS.pending"
+                      v-if="isPendingTask(task)"
                       class="text-button"
                       :disabled="actionPending"
                       @click="startTaskEdit(task)"
@@ -625,7 +656,7 @@ onMounted(loadDashboard)
                       Edit
                     </button>
                     <button
-                      v-if="task.status === TASK_STATUS.pending"
+                      v-if="isPendingTask(task)"
                       class="task-delete-button"
                       :disabled="actionPending"
                       :aria-label="`Delete ${task.title}`"
@@ -635,8 +666,8 @@ onMounted(loadDashboard)
                     </button>
                   </template>
                 </div>
-                <p v-if="tasks.length === 0" class="empty-copy">
-                  No quests for today. Add one or ask for a recommendation.
+                <p v-if="filteredTasks.length === 0" class="empty-copy">
+                  {{ filteredTasksEmptyMessage }}
                 </p>
               </div>
             </article>
