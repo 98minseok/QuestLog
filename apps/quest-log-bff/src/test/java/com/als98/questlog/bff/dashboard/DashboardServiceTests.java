@@ -148,14 +148,7 @@ class DashboardServiceTests {
 
     @Test
     void proxiesDailyTaskUpdateAndDelete() {
-        DashboardController.DailyTaskRequest request = new DashboardController.DailyTaskRequest(
-                3L,
-                "Polish dashboard",
-                "Finish responsive behavior",
-                LocalDate.of(2026, 6, 15),
-                "SKIPPED",
-                25
-        );
+        DashboardController.DailyTaskRequest request = dailyTaskUpdateRequest("SKIPPED");
         backend.expect(once(), requestTo("http://localhost:8081/api/be/daily-tasks/7"))
                 .andExpect(method(PUT))
                 .andExpect(content().json("""
@@ -191,6 +184,53 @@ class DashboardServiceTests {
 
         assertThat(updated.status()).isEqualTo("SKIPPED");
         backend.verify();
+    }
+
+    @Test
+    void forwardsOmittedDailyTaskStatusWithoutDefaultingIt() {
+        DashboardController.DailyTaskRequest request = dailyTaskUpdateRequest(null);
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/daily-tasks/7"))
+                .andExpect(method(PUT))
+                .andExpect(content().json("""
+                        {
+                          "goalId":3,
+                          "title":"Polish dashboard",
+                          "description":"Finish responsive behavior",
+                          "taskDate":"2026-06-15",
+                          "status":null,
+                          "xpReward":25
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                          "id":7,
+                          "goalId":3,
+                          "title":"Polish dashboard",
+                          "description":"Finish responsive behavior",
+                          "taskDate":"2026-06-15",
+                          "status":"PENDING",
+                          "source":"MANUAL",
+                          "xpReward":25,
+                          "createdAt":"2026-06-15T09:00:00Z",
+                          "updatedAt":"2026-06-15T10:00:00Z"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        DashboardResponse.DailyTask updated = dashboardService.updateDailyTask(7, request);
+
+        assertThat(updated.status()).isEqualTo("PENDING");
+        backend.verify();
+    }
+
+    private DashboardController.DailyTaskRequest dailyTaskUpdateRequest(String status) {
+        return new DashboardController.DailyTaskRequest(
+                3L,
+                "Polish dashboard",
+                "Finish responsive behavior",
+                LocalDate.of(2026, 6, 15),
+                status,
+                25
+        );
     }
 
     private void expectGet(String path, String responseBody) {
