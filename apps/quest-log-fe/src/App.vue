@@ -2,6 +2,16 @@
 import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
 
+const GOAL_STATUS = {
+  active: 'ACTIVE',
+  archived: 'ARCHIVED',
+} as const
+
+const TASK_STATUS = {
+  completed: 'COMPLETED',
+  pending: 'PENDING',
+} as const
+
 type Goal = {
   id: number
   title: string
@@ -73,9 +83,11 @@ const newGoalTitle = ref('')
 const newTaskTitle = ref('')
 const selectedGoalId = ref<number | null>(null)
 
-const activeGoals = computed(() => goals.value.filter((goal) => goal.status === 'ACTIVE'))
+const activeGoals = computed(() =>
+  goals.value.filter((goal) => goal.status === GOAL_STATUS.active),
+)
 const completedTaskCount = computed(
-  () => tasks.value.filter((task) => task.status === 'COMPLETED').length,
+  () => tasks.value.filter((task) => task.status === TASK_STATUS.completed).length,
 )
 const progressPercent = computed(() => character.value?.currentLevelXp ?? 0)
 const clearedRaidIds = computed(
@@ -118,87 +130,108 @@ async function loadDashboard() {
 
 async function createGoal() {
   if (!newGoalTitle.value.trim()) return
-  await runAction(async () => {
-    const response = await axios.post<Goal>('/api/bff/goals', {
-      title: newGoalTitle.value,
-      description: 'Created from the dashboard',
-    })
-    newGoalTitle.value = ''
-    selectedGoalId.value = response.data.id
-    notice.value = 'Goal added.'
-  })
+  await runAction(
+    async () => {
+      const response = await axios.post<Goal>('/api/bff/goals', {
+        title: newGoalTitle.value,
+        description: 'Created from the dashboard',
+      })
+      newGoalTitle.value = ''
+      selectedGoalId.value = response.data.id
+    },
+    'Goal added.',
+  )
 }
 
 async function createTask() {
   if (!newTaskTitle.value.trim()) return
-  await runAction(async () => {
-    await axios.post('/api/bff/daily-tasks', {
-      goalId: selectedGoalId.value,
-      title: newTaskTitle.value,
-      description: 'Created from the dashboard',
-      taskDate: today,
-      xpReward: 10,
-    })
-    newTaskTitle.value = ''
-    notice.value = 'Daily task added.'
-  })
+  await runAction(
+    async () => {
+      await axios.post('/api/bff/daily-tasks', {
+        goalId: selectedGoalId.value,
+        title: newTaskTitle.value,
+        description: 'Created from the dashboard',
+        taskDate: today,
+        xpReward: 10,
+      })
+      newTaskTitle.value = ''
+    },
+    'Daily task added.',
+  )
 }
 
 async function archiveGoal(goal: Goal) {
-  await runAction(async () => {
-    await axios.put(`/api/bff/goals/${goal.id}`, {
-      title: goal.title,
-      description: goal.description,
-      status: 'ARCHIVED',
-      targetDate: goal.targetDate,
-    })
-    if (selectedGoalId.value === goal.id) {
-      selectedGoalId.value = null
-    }
-    notice.value = 'Goal archived.'
-  })
+  await runAction(
+    async () => {
+      await axios.put(`/api/bff/goals/${goal.id}`, {
+        title: goal.title,
+        description: goal.description,
+        status: GOAL_STATUS.archived,
+        targetDate: goal.targetDate,
+      })
+      if (selectedGoalId.value === goal.id) {
+        selectedGoalId.value = null
+      }
+    },
+    'Goal archived.',
+  )
 }
 
 async function recommend(goalId: number) {
-  await runAction(async () => {
-    await axios.post(`/api/bff/goals/${goalId}/recommendations`, null, {
-      params: { taskDate: today },
-    })
-    notice.value = 'Mock AI suggestions are ready for today.'
-  })
+  await runAction(
+    async () => {
+      await axios.post(`/api/bff/goals/${goalId}/recommendations`, null, {
+        params: { taskDate: today },
+      })
+    },
+    'Mock AI suggestions are ready for today.',
+  )
 }
 
 async function completeTask(task: DailyTask) {
-  await runAction(async () => {
-    const response = await axios.post<{ xpAwarded: number }>(
-      `/api/bff/daily-tasks/${task.id}/complete`,
-    )
-    notice.value = `Quest complete. +${response.data.xpAwarded} XP`
-  })
+  await runAction(
+    async () => {
+      const response = await axios.post<{ xpAwarded: number }>(
+        `/api/bff/daily-tasks/${task.id}/complete`,
+      )
+      return response.data.xpAwarded
+    },
+    (xpAwarded) => `Quest complete. +${xpAwarded} XP`,
+  )
 }
 
-async function deletePendingTask(task: DailyTask) {
-  await runAction(async () => {
-    await axios.delete(`/api/bff/daily-tasks/${task.id}`)
-    notice.value = 'Daily task deleted.'
-  })
+async function deletePendingTask(taskId: number) {
+  await runAction(
+    async () => {
+      await axios.delete(`/api/bff/daily-tasks/${taskId}`)
+    },
+    'Daily task deleted.',
+  )
 }
 
 async function attemptRaid(raid: BossRaid) {
-  await runAction(async () => {
-    const response = await axios.post<{ xpAwarded: number }>(
-      `/api/bff/boss-raids/${raid.id}/attempts`,
-    )
-    notice.value = `${raid.name} cleared. +${response.data.xpAwarded} XP`
-  })
+  await runAction(
+    async () => {
+      const response = await axios.post<{ xpAwarded: number }>(
+        `/api/bff/boss-raids/${raid.id}/attempts`,
+      )
+      return response.data.xpAwarded
+    },
+    (xpAwarded) => `${raid.name} cleared. +${xpAwarded} XP`,
+  )
 }
 
-async function runAction(action: () => Promise<void>) {
+async function runAction<T>(
+  action: () => Promise<T>,
+  successMessage: string | ((result: T) => string),
+) {
   actionPending.value = true
   error.value = ''
   notice.value = ''
   try {
-    await action()
+    const result = await action()
+    notice.value =
+      typeof successMessage === 'function' ? successMessage(result) : successMessage
     await loadDashboard()
   } catch (caught) {
     error.value = apiMessage(caught)
@@ -271,14 +304,14 @@ onMounted(loadDashboard)
                   <div class="item-actions">
                     <button
                       class="text-button"
-                      :disabled="actionPending || goal.status !== 'ACTIVE'"
+                      :disabled="actionPending || goal.status !== GOAL_STATUS.active"
                       @click="recommend(goal.id)"
                     >
                       Suggest quests
                     </button>
                     <button
                       class="text-button muted"
-                      :disabled="actionPending || goal.status !== 'ACTIVE'"
+                      :disabled="actionPending || goal.status !== GOAL_STATUS.active"
                       @click="archiveGoal(goal)"
                     >
                       Archive
@@ -350,15 +383,15 @@ onMounted(loadDashboard)
                   v-for="task in tasks"
                   :key="task.id"
                   class="task-item"
-                  :class="{ completed: task.status === 'COMPLETED' }"
+                  :class="{ completed: task.status === TASK_STATUS.completed }"
                 >
                   <button
                     class="complete-button"
-                    :disabled="actionPending || task.status !== 'PENDING'"
+                    :disabled="actionPending || task.status !== TASK_STATUS.pending"
                     :aria-label="`Complete ${task.title}`"
                     @click="completeTask(task)"
                   >
-                    <span v-if="task.status === 'COMPLETED'">✓</span>
+                    <span v-if="task.status === TASK_STATUS.completed">✓</span>
                   </button>
                   <div class="task-copy">
                     <strong>{{ task.title }}</strong>
@@ -366,11 +399,11 @@ onMounted(loadDashboard)
                   </div>
                   <b>+{{ task.xpReward }} XP</b>
                   <button
-                    v-if="task.status === 'PENDING'"
+                    v-if="task.status === TASK_STATUS.pending"
                     class="task-delete-button"
                     :disabled="actionPending"
                     :aria-label="`Delete ${task.title}`"
-                    @click="deletePendingTask(task)"
+                    @click="deletePendingTask(task.id)"
                   >
                     Delete
                   </button>

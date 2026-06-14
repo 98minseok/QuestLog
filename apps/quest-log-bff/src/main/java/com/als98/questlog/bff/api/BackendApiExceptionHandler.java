@@ -1,13 +1,19 @@
 package com.als98.questlog.bff.api;
 
+import java.util.Map;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 
 @RestControllerAdvice
 public class BackendApiExceptionHandler {
+
+    private static final Map<String, String> BACKEND_UNAVAILABLE =
+            Map.of("message", "The QuestLog backend is unavailable.");
 
     @ExceptionHandler(RestClientResponseException.class)
     ResponseEntity<byte[]> backendError(RestClientResponseException exception) {
@@ -16,6 +22,12 @@ public class BackendApiExceptionHandler {
                 forwardedHeaders(exception),
                 exception.getStatusCode()
         );
+    }
+
+    @ExceptionHandler(ResourceAccessException.class)
+    ResponseEntity<Map<String, String>> backendUnavailable() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(BACKEND_UNAVAILABLE);
     }
 
     private HttpHeaders forwardedHeaders(RestClientResponseException exception) {

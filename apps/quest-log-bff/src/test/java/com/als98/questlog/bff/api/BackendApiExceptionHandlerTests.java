@@ -3,6 +3,7 @@ package com.als98.questlog.bff.api;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -52,5 +53,17 @@ class BackendApiExceptionHandlerTests {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody()).isEmpty();
         assertThat(response.getHeaders().getContentType()).isNull();
+    }
+
+    @Test
+    void returnsStableServiceUnavailableResponseWhenBackendCannotBeReached() {
+        ResponseEntity<?> response = handler.backendUnavailable();
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
+        assertThat(response.getBody())
+                .isEqualTo(Map.of(
+                        "message",
+                        "The QuestLog backend is unavailable."
+                ));
     }
 }
