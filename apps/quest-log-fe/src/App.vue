@@ -195,6 +195,10 @@ async function archiveGoal(goal: Goal) {
   )
 }
 
+async function confirmArchiveGoal(goal: Goal) {
+  await confirmAction(`Archive "${goal.title}"?`, () => archiveGoal(goal))
+}
+
 function startGoalEdit(goal: Goal) {
   editingGoalId.value = goal.id
   goalDraft.value = {
@@ -295,6 +299,10 @@ async function deletePendingTask(taskId: number) {
   )
 }
 
+async function confirmDeletePendingTask(task: DailyTask) {
+  await confirmAction(`Delete "${task.title}"?`, () => deletePendingTask(task.id))
+}
+
 async function attemptRaid(raid: BossRaid) {
   await runAction(
     async () => {
@@ -323,6 +331,12 @@ async function runAction<T>(
     error.value = apiMessage(caught)
   } finally {
     actionPending.value = false
+  }
+}
+
+async function confirmAction(message: string, action: () => Promise<void>) {
+  if (window.confirm(message)) {
+    await action()
   }
 }
 
@@ -430,7 +444,7 @@ onMounted(loadDashboard)
                       <button
                         class="text-button muted"
                         :disabled="actionPending || goal.status !== GOAL_STATUS.active"
-                        @click="archiveGoal(goal)"
+                        @click="confirmArchiveGoal(goal)"
                       >
                         Archive
                       </button>
@@ -569,7 +583,7 @@ onMounted(loadDashboard)
                       class="task-delete-button"
                       :disabled="actionPending"
                       :aria-label="`Delete ${task.title}`"
-                      @click="deletePendingTask(task.id)"
+                      @click="confirmDeletePendingTask(task)"
                     >
                       Delete
                     </button>
