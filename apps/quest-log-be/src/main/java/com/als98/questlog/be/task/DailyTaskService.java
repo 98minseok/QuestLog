@@ -125,8 +125,16 @@ public class DailyTaskService {
 
     @Transactional
     public void delete(long userId, long taskId) {
+        requirePendingForDeletion(userId, taskId);
         if (jdbcTemplate.update("DELETE FROM daily_tasks WHERE id = ? AND user_id = ?", taskId, userId) == 0) {
             throw new ResourceNotFoundException("Daily task", taskId);
+        }
+    }
+
+    private void requirePendingForDeletion(long userId, long taskId) {
+        DailyTask currentTask = find(userId, taskId);
+        if (!"PENDING".equals(currentTask.status())) {
+            throw new DailyTaskNotDeletableException(taskId, currentTask.status());
         }
     }
 

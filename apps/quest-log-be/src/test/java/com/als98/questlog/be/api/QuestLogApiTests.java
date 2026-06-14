@@ -84,9 +84,11 @@ class QuestLogApiTests {
                 .andExpect(jsonPath("$.status").value("SKIPPED"))
                 .andExpect(jsonPath("$.xpReward").value(35));
 
-        mockMvc.perform(delete("/api/be/daily-tasks/{taskId}", taskId))
+        long disposableTaskId = createTask(goalId, "Delete temporary task", 10);
+        mockMvc.perform(delete("/api/be/daily-tasks/{taskId}", disposableTaskId))
                 .andExpect(status().isNoContent());
-        mockMvc.perform(delete("/api/be/goals/{goalId}", goalId))
+        long disposableGoalId = createGoal("Delete temporary goal");
+        mockMvc.perform(delete("/api/be/goals/{goalId}", disposableGoalId))
                 .andExpect(status().isNoContent());
     }
 
@@ -284,6 +286,49 @@ class QuestLogApiTests {
 
         assertResourceTitle("/api/be/goals/{resourceId}", goalId, "Preserve task history");
         assertResourceTitle("/api/be/daily-tasks/{resourceId}", taskId, "Historical task");
+    }
+
+    @Test
+    void rejectsDeletionOfSkippedAndCompletedDailyTasks() throws Exception {
+        long goalId = createGoal("Preserve task outcomes");
+        long skippedTaskId = createTask(goalId, "Skipped history", 20);
+        mockMvc.perform(put("/api/be/daily-tasks/{taskId}", skippedTaskId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": %d,
+                                  "title": "Skipped history",
+                                  "taskDate": "2026-06-14",
+                                  "status": "SKIPPED",
+                                  "xpReward": 20
+                                }
+                                """.formatted(goalId)))
+                .andExpect(status().isOk());
+
+        long completedTaskId = createTask(goalId, "Completed history", 30);
+        mockMvc.perform(post("/api/be/daily-tasks/{taskId}/complete", completedTaskId))
+                .andExpect(status().isOk());
+
+        assertTaskDeletionConflict(skippedTaskId, "SKIPPED");
+        assertTaskDeletionConflict(completedTaskId, "COMPLETED");
+        assertResourceTitle(
+                "/api/be/daily-tasks/{resourceId}",
+                skippedTaskId,
+                "Skipped history"
+        );
+        assertResourceTitle(
+                "/api/be/daily-tasks/{resourceId}",
+                completedTaskId,
+                "Completed history"
+        );
+    }
+
+    private void assertTaskDeletionConflict(long taskId, String statusValue) throws Exception {
+        mockMvc.perform(delete("/api/be/daily-tasks/{taskId}", taskId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Daily task %d cannot be deleted from status %s"
+                                .formatted(taskId, statusValue)));
     }
 
     private void assertInvalidUpdate(

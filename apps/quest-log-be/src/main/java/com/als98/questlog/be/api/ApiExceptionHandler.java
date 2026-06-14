@@ -4,6 +4,7 @@ import com.als98.questlog.be.goal.GoalHasTasksException;
 import com.als98.questlog.be.raid.RaidAlreadyClearedException;
 import com.als98.questlog.be.raid.RaidLockedException;
 import com.als98.questlog.be.task.DailyTaskAlreadyCompletedException;
+import com.als98.questlog.be.task.DailyTaskNotDeletableException;
 import com.als98.questlog.be.task.DailyTaskNotFoundException;
 import com.als98.questlog.be.task.DailyTaskNotPendingException;
 import java.util.Map;
@@ -30,6 +31,7 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler({
             DailyTaskAlreadyCompletedException.class,
+            DailyTaskNotDeletableException.class,
             DailyTaskNotPendingException.class,
             GoalHasTasksException.class,
             RaidAlreadyClearedException.class,
