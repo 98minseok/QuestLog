@@ -420,6 +420,15 @@ form button {
   text-decoration: line-through;
 }
 
+.task-item.skipped .task-copy,
+.task-item.skipped b {
+  color: #6f7a76;
+}
+
+.task-item.skipped .task-copy {
+  text-decoration: line-through;
+}
+
 .stage {
   color: #e7ff54;
   font-family: 'DM Mono', monospace;

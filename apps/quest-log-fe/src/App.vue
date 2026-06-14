@@ -10,6 +10,7 @@ const GOAL_STATUS = {
 const TASK_STATUS = {
   completed: 'COMPLETED',
   pending: 'PENDING',
+  skipped: 'SKIPPED',
 } as const
 
 type Goal = {
@@ -264,14 +265,12 @@ async function saveTask(task: DailyTask) {
   }
   await runAction(
     async () => {
-      await axios.put(`/api/bff/daily-tasks/${task.id}`, {
+      await axios.put(`/api/bff/daily-tasks/${task.id}`, taskUpdatePayload(task, {
         goalId: taskDraft.value.goalId,
         title: taskDraft.value.title,
         description: taskDraft.value.description,
-        taskDate: task.taskDate,
-        status: task.status,
         xpReward: taskDraft.value.xpReward,
-      })
+      }))
       editingTaskId.value = null
     },
     'Daily task updated.',
@@ -288,6 +287,34 @@ async function completeTask(task: DailyTask) {
     },
     (xpAwarded) => `Quest complete. +${xpAwarded} XP`,
   )
+}
+
+async function skipPendingTask(task: DailyTask) {
+  await runAction(
+    async () => {
+      await axios.put(`/api/bff/daily-tasks/${task.id}`, taskUpdatePayload(task, {
+        status: TASK_STATUS.skipped,
+      }))
+    },
+    'Daily task skipped.',
+  )
+}
+
+function taskUpdatePayload(
+  task: DailyTask,
+  updates: Partial<
+    Pick<DailyTask, 'goalId' | 'title' | 'description' | 'status' | 'xpReward'>
+  >,
+) {
+  return {
+    goalId: task.goalId,
+    title: task.title,
+    description: task.description,
+    taskDate: task.taskDate,
+    status: task.status,
+    xpReward: task.xpReward,
+    ...updates,
+  }
 }
 
 async function deletePendingTask(taskId: number) {
@@ -516,7 +543,10 @@ onMounted(loadDashboard)
                   v-for="task in tasks"
                   :key="task.id"
                   class="task-item"
-                  :class="{ completed: task.status === TASK_STATUS.completed }"
+                  :class="{
+                    completed: task.status === TASK_STATUS.completed,
+                    skipped: task.status === TASK_STATUS.skipped,
+                  }"
                 >
                   <form
                     v-if="editingTaskId === task.id"
@@ -567,9 +597,25 @@ onMounted(loadDashboard)
                     </button>
                     <div class="task-copy">
                       <strong>{{ task.title }}</strong>
-                      <span>{{ task.source === 'AI_RECOMMENDED' ? 'MOCK AI' : 'MANUAL' }}</span>
+                      <span>
+                        {{
+                          task.status === TASK_STATUS.skipped
+                            ? 'SKIPPED'
+                            : task.source === 'AI_RECOMMENDED'
+                              ? 'MOCK AI'
+                              : 'MANUAL'
+                        }}
+                      </span>
                     </div>
                     <b>+{{ task.xpReward }} XP</b>
+                    <button
+                      v-if="task.status === TASK_STATUS.pending"
+                      class="text-button muted"
+                      :disabled="actionPending"
+                      @click="skipPendingTask(task)"
+                    >
+                      Skip
+                    </button>
                     <button
                       v-if="task.status === TASK_STATUS.pending"
                       class="text-button"
