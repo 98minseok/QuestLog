@@ -1,11 +1,13 @@
 package com.als98.questlog.bff.dashboard;
 
 import static org.springframework.http.HttpMethod.DELETE;
+import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,14 +15,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.als98.questlog.bff.api.BackendApiExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.client.RestClient;
 
-class DashboardDeletionConflictTests {
+class DashboardConflictForwardingTests {
 
     private MockRestServiceServer backend;
     private MockMvc mockMvc;
@@ -42,34 +46,47 @@ class DashboardDeletionConflictTests {
 
     @Test
     void forwardsGoalDeletionConflictFromBackend() throws Exception {
-        assertDeletionConflict(
+        assertConflict(
+                DELETE,
                 "/api/be/goals/3",
-                "/api/bff/goals/3",
+                delete("/api/bff/goals/3"),
                 "Goal 3 cannot be deleted while it has daily tasks"
         );
     }
 
     @Test
     void forwardsDailyTaskDeletionConflictFromBackend() throws Exception {
-        assertDeletionConflict(
+        assertConflict(
+                DELETE,
                 "/api/be/daily-tasks/7",
-                "/api/bff/daily-tasks/7",
+                delete("/api/bff/daily-tasks/7"),
                 "Daily task 7 cannot be deleted from status COMPLETED"
         );
     }
 
-    private void assertDeletionConflict(
+    @Test
+    void forwardsSkippedTaskCompletionConflictFromBackend() throws Exception {
+        assertConflict(
+                POST,
+                "/api/be/daily-tasks/7/complete",
+                post("/api/bff/daily-tasks/7/complete"),
+                "Daily task 7 cannot be completed from status SKIPPED"
+        );
+    }
+
+    private void assertConflict(
+            HttpMethod httpMethod,
             String backendPath,
-            String bffPath,
+            MockHttpServletRequestBuilder bffRequest,
             String message
     ) throws Exception {
         backend.expect(once(), requestTo("http://localhost:8081" + backendPath))
-                .andExpect(method(DELETE))
+                .andExpect(method(httpMethod))
                 .andRespond(withStatus(HttpStatus.CONFLICT)
                         .contentType(MediaType.APPLICATION_JSON)
                         .body("{\"message\":\"" + message + "\"}"));
 
-        mockMvc.perform(delete(bffPath))
+        mockMvc.perform(bffRequest)
                 .andExpect(status().isConflict())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.message").value(message));
