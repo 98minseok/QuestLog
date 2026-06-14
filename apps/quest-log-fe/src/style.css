@@ -258,6 +258,32 @@ form button {
   color: #87948f;
 }
 
+.edit-form {
+  display: grid;
+  width: 100%;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 2fr) minmax(140px, 0.8fr) auto;
+  gap: 8px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.edit-actions button {
+  min-height: 42px;
+}
+
+.secondary-button {
+  border: 1px solid #3b4743;
+  color: #aab6b2;
+  background: transparent;
+}
+
+.task-edit-form {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.8fr) minmax(120px, 0.8fr) 100px auto;
+}
+
 .character-panel {
   position: relative;
   overflow: hidden;
@@ -511,6 +537,11 @@ footer code {
   .item-actions {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .edit-form,
+  .task-edit-form {
+    grid-template-columns: 1fr;
   }
 
   .task-item {

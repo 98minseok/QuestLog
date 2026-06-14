@@ -82,9 +82,27 @@ const attempts = ref<RaidAttempt[]>([])
 const newGoalTitle = ref('')
 const newTaskTitle = ref('')
 const selectedGoalId = ref<number | null>(null)
+const editingGoalId = ref<number | null>(null)
+const goalDraft = ref({
+  title: '',
+  description: '',
+  targetDate: '',
+})
+const editingTaskId = ref<number | null>(null)
+const taskDraft = ref({
+  title: '',
+  description: '',
+  goalId: null as number | null,
+  xpReward: 10,
+})
 
 const activeGoals = computed(() =>
   goals.value.filter((goal) => goal.status === GOAL_STATUS.active),
+)
+const taskGoalOptions = computed(() =>
+  goals.value.filter(
+    (goal) => goal.status === GOAL_STATUS.active || goal.id === taskDraft.value.goalId,
+  ),
 )
 const completedTaskCount = computed(
   () => tasks.value.filter((task) => task.status === TASK_STATUS.completed).length,
@@ -177,6 +195,35 @@ async function archiveGoal(goal: Goal) {
   )
 }
 
+function startGoalEdit(goal: Goal) {
+  editingGoalId.value = goal.id
+  goalDraft.value = {
+    title: goal.title,
+    description: goal.description ?? '',
+    targetDate: goal.targetDate ?? '',
+  }
+}
+
+function cancelGoalEdit() {
+  editingGoalId.value = null
+}
+
+async function saveGoal(goal: Goal) {
+  if (!goalDraft.value.title.trim()) return
+  await runAction(
+    async () => {
+      await axios.put(`/api/bff/goals/${goal.id}`, {
+        title: goalDraft.value.title,
+        description: goalDraft.value.description,
+        status: goal.status,
+        targetDate: goalDraft.value.targetDate || null,
+      })
+      editingGoalId.value = null
+    },
+    'Goal updated.',
+  )
+}
+
 async function recommend(goalId: number) {
   await runAction(
     async () => {
@@ -185,6 +232,45 @@ async function recommend(goalId: number) {
       })
     },
     'Mock AI suggestions are ready for today.',
+  )
+}
+
+function startTaskEdit(task: DailyTask) {
+  editingTaskId.value = task.id
+  taskDraft.value = {
+    title: task.title,
+    description: task.description ?? '',
+    goalId: task.goalId,
+    xpReward: task.xpReward,
+  }
+}
+
+function cancelTaskEdit() {
+  editingTaskId.value = null
+}
+
+async function saveTask(task: DailyTask) {
+  if (
+    !taskDraft.value.title.trim() ||
+    !Number.isInteger(taskDraft.value.xpReward) ||
+    taskDraft.value.xpReward < 1 ||
+    taskDraft.value.xpReward > 1000
+  ) {
+    return
+  }
+  await runAction(
+    async () => {
+      await axios.put(`/api/bff/daily-tasks/${task.id}`, {
+        goalId: taskDraft.value.goalId,
+        title: taskDraft.value.title,
+        description: taskDraft.value.description,
+        taskDate: task.taskDate,
+        status: task.status,
+        xpReward: taskDraft.value.xpReward,
+      })
+      editingTaskId.value = null
+    },
+    'Daily task updated.',
   )
 }
 
@@ -296,27 +382,60 @@ onMounted(loadDashboard)
 
               <div class="item-list">
                 <div v-for="goal in goals" :key="goal.id" class="goal-item">
-                  <div>
-                    <span class="status-dot" :class="goal.status.toLowerCase()" />
-                    <strong>{{ goal.title }}</strong>
-                    <p>{{ goal.description || 'No description yet.' }}</p>
-                  </div>
-                  <div class="item-actions">
-                    <button
-                      class="text-button"
-                      :disabled="actionPending || goal.status !== GOAL_STATUS.active"
-                      @click="recommend(goal.id)"
-                    >
-                      Suggest quests
-                    </button>
-                    <button
-                      class="text-button muted"
-                      :disabled="actionPending || goal.status !== GOAL_STATUS.active"
-                      @click="archiveGoal(goal)"
-                    >
-                      Archive
-                    </button>
-                  </div>
+                  <form
+                    v-if="editingGoalId === goal.id"
+                    class="edit-form"
+                    @submit.prevent="saveGoal(goal)"
+                  >
+                    <input v-model="goalDraft.title" maxlength="200" aria-label="Goal title" />
+                    <input v-model="goalDraft.description" aria-label="Goal description" />
+                    <input
+                      v-model="goalDraft.targetDate"
+                      type="date"
+                      aria-label="Goal target date"
+                    />
+                    <div class="edit-actions">
+                      <button
+                        type="submit"
+                        :disabled="actionPending || !goalDraft.title.trim()"
+                      >
+                        Save
+                      </button>
+                      <button type="button" class="secondary-button" @click="cancelGoalEdit">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                  <template v-else>
+                    <div>
+                      <span class="status-dot" :class="goal.status.toLowerCase()" />
+                      <strong>{{ goal.title }}</strong>
+                      <p>{{ goal.description || 'No description yet.' }}</p>
+                    </div>
+                    <div class="item-actions">
+                      <button
+                        class="text-button"
+                        :disabled="actionPending || goal.status !== GOAL_STATUS.active"
+                        @click="recommend(goal.id)"
+                      >
+                        Suggest quests
+                      </button>
+                      <button
+                        class="text-button"
+                        :disabled="actionPending || goal.status !== GOAL_STATUS.active"
+                        @click="startGoalEdit(goal)"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        class="text-button muted"
+                        :disabled="actionPending || goal.status !== GOAL_STATUS.active"
+                        @click="archiveGoal(goal)"
+                      >
+                        Archive
+                      </button>
+                    </div>
+                  </template>
                 </div>
                 <p v-if="goals.length === 0" class="empty-copy">
                   Create your first long-term quest to unlock daily recommendations.
@@ -385,28 +504,76 @@ onMounted(loadDashboard)
                   class="task-item"
                   :class="{ completed: task.status === TASK_STATUS.completed }"
                 >
-                  <button
-                    class="complete-button"
-                    :disabled="actionPending || task.status !== TASK_STATUS.pending"
-                    :aria-label="`Complete ${task.title}`"
-                    @click="completeTask(task)"
+                  <form
+                    v-if="editingTaskId === task.id"
+                    class="edit-form task-edit-form"
+                    @submit.prevent="saveTask(task)"
                   >
-                    <span v-if="task.status === TASK_STATUS.completed">✓</span>
-                  </button>
-                  <div class="task-copy">
-                    <strong>{{ task.title }}</strong>
-                    <span>{{ task.source === 'AI_RECOMMENDED' ? 'MOCK AI' : 'MANUAL' }}</span>
-                  </div>
-                  <b>+{{ task.xpReward }} XP</b>
-                  <button
-                    v-if="task.status === TASK_STATUS.pending"
-                    class="task-delete-button"
-                    :disabled="actionPending"
-                    :aria-label="`Delete ${task.title}`"
-                    @click="deletePendingTask(task.id)"
-                  >
-                    Delete
-                  </button>
+                    <input v-model="taskDraft.title" maxlength="200" aria-label="Task title" />
+                    <input v-model="taskDraft.description" aria-label="Task description" />
+                    <select v-model="taskDraft.goalId" aria-label="Task goal">
+                      <option :value="null">No goal</option>
+                      <option v-for="goal in taskGoalOptions" :key="goal.id" :value="goal.id">
+                        {{ goal.title }}
+                      </option>
+                    </select>
+                    <input
+                      v-model.number="taskDraft.xpReward"
+                      type="number"
+                      min="1"
+                      max="1000"
+                      aria-label="Task XP reward"
+                    />
+                    <div class="edit-actions">
+                      <button
+                        type="submit"
+                        :disabled="
+                          actionPending ||
+                          !taskDraft.title.trim() ||
+                          !Number.isInteger(taskDraft.xpReward) ||
+                          taskDraft.xpReward < 1 ||
+                          taskDraft.xpReward > 1000
+                        "
+                      >
+                        Save
+                      </button>
+                      <button type="button" class="secondary-button" @click="cancelTaskEdit">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                  <template v-else>
+                    <button
+                      class="complete-button"
+                      :disabled="actionPending || task.status !== TASK_STATUS.pending"
+                      :aria-label="`Complete ${task.title}`"
+                      @click="completeTask(task)"
+                    >
+                      <span v-if="task.status === TASK_STATUS.completed">✓</span>
+                    </button>
+                    <div class="task-copy">
+                      <strong>{{ task.title }}</strong>
+                      <span>{{ task.source === 'AI_RECOMMENDED' ? 'MOCK AI' : 'MANUAL' }}</span>
+                    </div>
+                    <b>+{{ task.xpReward }} XP</b>
+                    <button
+                      v-if="task.status === TASK_STATUS.pending"
+                      class="text-button"
+                      :disabled="actionPending"
+                      @click="startTaskEdit(task)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      v-if="task.status === TASK_STATUS.pending"
+                      class="task-delete-button"
+                      :disabled="actionPending"
+                      :aria-label="`Delete ${task.title}`"
+                      @click="deletePendingTask(task.id)"
+                    >
+                      Delete
+                    </button>
+                  </template>
                 </div>
                 <p v-if="tasks.length === 0" class="empty-copy">
                   No quests for today. Add one or ask for a recommendation.
