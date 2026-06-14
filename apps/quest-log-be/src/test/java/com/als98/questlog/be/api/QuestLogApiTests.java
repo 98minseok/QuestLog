@@ -339,6 +339,32 @@ class QuestLogApiTests {
     }
 
     @Test
+    void rejectsDirectCompletionThroughTaskUpdateWithoutApiSideEffects() throws Exception {
+        long goalId = createGoal("Protect completion rewards");
+        long taskId = createTask(goalId, "Complete through reward flow", 60);
+
+        mockMvc.perform(put("/api/be/daily-tasks/{taskId}", taskId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": %d,
+                                  "title": "Complete through reward flow",
+                                  "taskDate": "2026-06-14",
+                                  "status": "COMPLETED",
+                                  "xpReward": 60
+                                }
+                                """.formatted(goalId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("Use the daily task completion endpoint to complete a task"));
+
+        mockMvc.perform(get("/api/be/daily-tasks/{taskId}", taskId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"));
+        assertNoTaskCompletionSideEffects(taskId);
+    }
+
+    @Test
     void rejectsSkippedTaskCompletionWithoutApiSideEffects() throws Exception {
         long goalId = createGoal("Keep skipped task state");
         long taskId = createTask(goalId, "Skipped completion attempt", 45);
@@ -353,6 +379,10 @@ class QuestLogApiTests {
         mockMvc.perform(get("/api/be/daily-tasks/{taskId}", taskId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SKIPPED"));
+        assertNoTaskCompletionSideEffects(taskId);
+    }
+
+    private void assertNoTaskCompletionSideEffects(long taskId) {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM task_completions WHERE task_id = ?",
                 Integer.class,
