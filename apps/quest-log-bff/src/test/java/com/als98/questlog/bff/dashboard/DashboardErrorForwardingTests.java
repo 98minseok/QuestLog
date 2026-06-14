@@ -85,19 +85,34 @@ class DashboardErrorForwardingTests {
                 PUT,
                 HttpStatus.BAD_REQUEST,
                 "/api/be/daily-tasks/7",
-                put("/api/bff/daily-tasks/7")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "goalId": 3,
-                                  "title": "Reactivate skipped task",
-                                  "taskDate": "2026-06-15",
-                                  "status": "PENDING",
-                                  "xpReward": 25
-                                }
-                                """),
+                dailyTaskUpdateRequest("Reactivate skipped task", "PENDING"),
                 "Skipped daily tasks cannot be edited"
         );
+    }
+
+    @Test
+    void forwardsDirectCompletionUpdateRejectionFromBackend() throws Exception {
+        assertForwardedError(
+                PUT,
+                HttpStatus.BAD_REQUEST,
+                "/api/be/daily-tasks/7",
+                dailyTaskUpdateRequest("Complete through reward flow", "COMPLETED"),
+                "Use the daily task completion endpoint to complete a task"
+        );
+    }
+
+    private MockHttpServletRequestBuilder dailyTaskUpdateRequest(String title, String status) {
+        return put("/api/bff/daily-tasks/7")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {
+                          "goalId": 3,
+                          "title": "%s",
+                          "taskDate": "2026-06-15",
+                          "status": "%s",
+                          "xpReward": 25
+                        }
+                        """.formatted(title, status));
     }
 
     private void assertForwardedError(
