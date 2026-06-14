@@ -272,6 +272,20 @@ class QuestLogApiTests {
                 .andExpect(jsonPath("$.xpReward").value(30));
     }
 
+    @Test
+    void rejectsGoalDeletionWhileDailyTasksStillReferenceIt() throws Exception {
+        long goalId = createGoal("Preserve task history");
+        long taskId = createTask(goalId, "Historical task", 30);
+
+        mockMvc.perform(delete("/api/be/goals/{goalId}", goalId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Goal " + goalId + " cannot be deleted while it has daily tasks"));
+
+        assertResourceTitle("/api/be/goals/{resourceId}", goalId, "Preserve task history");
+        assertResourceTitle("/api/be/daily-tasks/{resourceId}", taskId, "Historical task");
+    }
+
     private void assertInvalidUpdate(
             String path,
             long resourceId,

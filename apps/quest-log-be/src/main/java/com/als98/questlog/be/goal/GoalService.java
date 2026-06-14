@@ -88,9 +88,21 @@ public class GoalService {
 
     @Transactional
     public void delete(long userId, long goalId) {
+        if (hasDailyTasks(userId, goalId)) {
+            throw new GoalHasTasksException(goalId);
+        }
         if (jdbcTemplate.update("DELETE FROM goals WHERE id = ? AND user_id = ?", goalId, userId) == 0) {
             throw new ResourceNotFoundException("Goal", goalId);
         }
+    }
+
+    private boolean hasDailyTasks(long userId, long goalId) {
+        return Boolean.TRUE.equals(jdbcTemplate.queryForObject(
+                "SELECT EXISTS (SELECT 1 FROM daily_tasks WHERE goal_id = ? AND user_id = ?)",
+                Boolean.class,
+                goalId,
+                userId
+        ));
     }
 
     private static Goal mapGoal(ResultSet resultSet, int rowNumber) throws SQLException {

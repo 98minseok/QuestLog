@@ -1,5 +1,6 @@
 package com.als98.questlog.be.api;
 
+import com.als98.questlog.be.goal.GoalHasTasksException;
 import com.als98.questlog.be.raid.RaidAlreadyClearedException;
 import com.als98.questlog.be.raid.RaidLockedException;
 import com.als98.questlog.be.task.DailyTaskAlreadyCompletedException;
@@ -30,6 +31,7 @@ public class ApiExceptionHandler {
     @ExceptionHandler({
             DailyTaskAlreadyCompletedException.class,
             DailyTaskNotPendingException.class,
+            GoalHasTasksException.class,
             RaidAlreadyClearedException.class,
             RaidLockedException.class
     })
