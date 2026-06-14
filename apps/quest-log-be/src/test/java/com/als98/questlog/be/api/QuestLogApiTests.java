@@ -292,18 +292,7 @@ class QuestLogApiTests {
     void rejectsDeletionOfSkippedAndCompletedDailyTasks() throws Exception {
         long goalId = createGoal("Preserve task outcomes");
         long skippedTaskId = createTask(goalId, "Skipped history", 20);
-        mockMvc.perform(put("/api/be/daily-tasks/{taskId}", skippedTaskId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {
-                                  "goalId": %d,
-                                  "title": "Skipped history",
-                                  "taskDate": "2026-06-14",
-                                  "status": "SKIPPED",
-                                  "xpReward": 20
-                                }
-                                """.formatted(goalId)))
-                .andExpect(status().isOk());
+        skipTask(goalId, skippedTaskId, "Skipped history", 20);
 
         long completedTaskId = createTask(goalId, "Completed history", 30);
         mockMvc.perform(post("/api/be/daily-tasks/{taskId}/complete", completedTaskId))
@@ -321,6 +310,48 @@ class QuestLogApiTests {
                 completedTaskId,
                 "Completed history"
         );
+    }
+
+    @Test
+    void rejectsSkippedTaskCompletionWithoutApiSideEffects() throws Exception {
+        long goalId = createGoal("Keep skipped task state");
+        long taskId = createTask(goalId, "Skipped completion attempt", 45);
+        skipTask(goalId, taskId, "Skipped completion attempt", 45);
+
+        mockMvc.perform(post("/api/be/daily-tasks/{taskId}/complete", taskId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Daily task " + taskId
+                                + " cannot be completed from status SKIPPED"));
+
+        mockMvc.perform(get("/api/be/daily-tasks/{taskId}", taskId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SKIPPED"));
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM task_completions WHERE task_id = ?",
+                Integer.class,
+                taskId
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM character_profiles",
+                Integer.class
+        )).isZero();
+    }
+
+    private void skipTask(long goalId, long taskId, String title, int xpReward)
+            throws Exception {
+        mockMvc.perform(put("/api/be/daily-tasks/{taskId}", taskId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": %d,
+                                  "title": "%s",
+                                  "taskDate": "2026-06-14",
+                                  "status": "SKIPPED",
+                                  "xpReward": %d
+                                }
+                                """.formatted(goalId, title, xpReward)))
+                .andExpect(status().isOk());
     }
 
     private void assertTaskDeletionConflict(long taskId, String statusValue) throws Exception {
