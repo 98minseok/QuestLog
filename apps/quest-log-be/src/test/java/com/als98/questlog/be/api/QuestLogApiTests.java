@@ -313,6 +313,32 @@ class QuestLogApiTests {
     }
 
     @Test
+    void rejectsEditingSkippedDailyTasks() throws Exception {
+        long goalId = createGoal("Preserve skipped task history");
+        long taskId = createTask(goalId, "Skipped task history", 25);
+        skipTask(goalId, taskId, "Skipped task history", 25);
+
+        mockMvc.perform(put("/api/be/daily-tasks/{taskId}", taskId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": %d,
+                                  "title": "Reactivate skipped task",
+                                  "taskDate": "2026-06-14",
+                                  "status": "PENDING",
+                                  "xpReward": 25
+                                }
+                                """.formatted(goalId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Skipped daily tasks cannot be edited"));
+
+        mockMvc.perform(get("/api/be/daily-tasks/{taskId}", taskId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Skipped task history"))
+                .andExpect(jsonPath("$.status").value("SKIPPED"));
+    }
+
+    @Test
     void rejectsSkippedTaskCompletionWithoutApiSideEffects() throws Exception {
         long goalId = createGoal("Keep skipped task state");
         long taskId = createTask(goalId, "Skipped completion attempt", 45);

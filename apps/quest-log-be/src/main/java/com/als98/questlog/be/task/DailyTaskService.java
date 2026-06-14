@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -94,9 +95,7 @@ public class DailyTaskService {
         if (!STATUSES.contains(normalizedStatus)) {
             throw new IllegalArgumentException("Unsupported daily task status: " + status);
         }
-        if ("COMPLETED".equals(currentTask.status())) {
-            throw new IllegalArgumentException("Completed daily tasks cannot be edited");
-        }
+        requirePendingForEditing(currentTask);
         if ("COMPLETED".equals(normalizedStatus)) {
             throw new IllegalArgumentException("Use the daily task completion endpoint to complete a task");
         }
@@ -121,6 +120,15 @@ public class DailyTaskService {
             throw new ResourceNotFoundException("Daily task", taskId);
         }
         return find(userId, taskId);
+    }
+
+    private static void requirePendingForEditing(DailyTask currentTask) {
+        if ("PENDING".equals(currentTask.status())) {
+            return;
+        }
+        String displayStatus = currentTask.status().substring(0, 1)
+                + currentTask.status().substring(1).toLowerCase(Locale.ROOT);
+        throw new IllegalArgumentException(displayStatus + " daily tasks cannot be edited");
     }
 
     @Transactional
