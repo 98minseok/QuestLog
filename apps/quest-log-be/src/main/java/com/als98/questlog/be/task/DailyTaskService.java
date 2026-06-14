@@ -91,7 +91,9 @@ public class DailyTaskService {
             int xpReward
     ) {
         DailyTask currentTask = find(userId, taskId);
-        String normalizedStatus = status.toUpperCase();
+        String normalizedStatus = status == null
+                ? currentTask.status()
+                : status.toUpperCase(Locale.ROOT);
         if (!STATUSES.contains(normalizedStatus)) {
             throw new IllegalArgumentException("Unsupported daily task status: " + status);
         }

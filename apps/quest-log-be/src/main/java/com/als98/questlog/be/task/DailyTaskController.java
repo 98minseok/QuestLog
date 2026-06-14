@@ -76,7 +76,7 @@ public class DailyTaskController {
                 request.title(),
                 request.description(),
                 request.taskDate(),
-                request.status() == null ? "PENDING" : request.status(),
+                request.status(),
                 request.xpReward()
         );
     }

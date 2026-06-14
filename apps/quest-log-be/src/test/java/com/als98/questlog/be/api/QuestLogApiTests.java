@@ -93,6 +93,28 @@ class QuestLogApiTests {
     }
 
     @Test
+    void preservesTaskStatusWhenUpdateOmitsStatus() throws Exception {
+        long goalId = createGoal("Keep task state stable");
+        long taskId = createTask(goalId, "Original task", 30);
+
+        mockMvc.perform(put("/api/be/daily-tasks/{taskId}", taskId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": %d,
+                                  "title": "Updated task",
+                                  "description": "Status was intentionally omitted",
+                                  "taskDate": "2026-06-15",
+                                  "xpReward": 40
+                                }
+                                """.formatted(goalId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Updated task"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.xpReward").value(40));
+    }
+
+    @Test
     void recommendationsAreDeterministicAndReuseExistingTasks() throws Exception {
         long goalId = createGoal("Run a half marathon");
 
