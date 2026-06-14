@@ -51,7 +51,7 @@ class ProgressionSchemaMigrationTests {
                 RETURNING id
                 """,
                 Long.class,
-                1,
+                101,
                 "Slime King",
                 100,
                 50
@@ -138,7 +138,7 @@ class ProgressionSchemaMigrationTests {
                 RETURNING id
                 """,
                 Long.class,
-                2,
+                102,
                 "Stone Guardian",
                 250,
                 100
