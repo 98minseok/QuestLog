@@ -20,7 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.client.RestClient;
 
-class DashboardGoalDeletionTests {
+class DashboardDeletionConflictTests {
 
     private MockRestServiceServer backend;
     private MockMvc mockMvc;
@@ -42,19 +42,37 @@ class DashboardGoalDeletionTests {
 
     @Test
     void forwardsGoalDeletionConflictFromBackend() throws Exception {
-        backend.expect(once(), requestTo("http://localhost:8081/api/be/goals/3"))
+        assertDeletionConflict(
+                "/api/be/goals/3",
+                "/api/bff/goals/3",
+                "Goal 3 cannot be deleted while it has daily tasks"
+        );
+    }
+
+    @Test
+    void forwardsDailyTaskDeletionConflictFromBackend() throws Exception {
+        assertDeletionConflict(
+                "/api/be/daily-tasks/7",
+                "/api/bff/daily-tasks/7",
+                "Daily task 7 cannot be deleted from status COMPLETED"
+        );
+    }
+
+    private void assertDeletionConflict(
+            String backendPath,
+            String bffPath,
+            String message
+    ) throws Exception {
+        backend.expect(once(), requestTo("http://localhost:8081" + backendPath))
                 .andExpect(method(DELETE))
                 .andRespond(withStatus(HttpStatus.CONFLICT)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .body("""
-                                {"message":"Goal 3 cannot be deleted while it has daily tasks"}
-                                """));
+                        .body("{\"message\":\"" + message + "\"}"));
 
-        mockMvc.perform(delete("/api/bff/goals/3"))
+        mockMvc.perform(delete(bffPath))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.message")
-                        .value("Goal 3 cannot be deleted while it has daily tasks"));
+                .andExpect(jsonPath("$.message").value(message));
 
         backend.verify();
     }
