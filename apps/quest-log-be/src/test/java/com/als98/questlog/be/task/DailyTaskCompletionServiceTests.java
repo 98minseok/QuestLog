@@ -97,21 +97,51 @@ class DailyTaskCompletionServiceTests {
         assertThatThrownBy(() -> completionService.complete(otherUserId, taskId))
                 .isInstanceOf(DailyTaskNotFoundException.class);
 
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT status FROM daily_tasks WHERE id = ?",
-                String.class,
-                taskId
-        )).isEqualTo("PENDING");
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT count(*) FROM task_completions WHERE task_id = ?",
-                Integer.class,
-                taskId
-        )).isZero();
+        assertTaskStatus(taskId, "PENDING");
+        assertNoCompletion(taskId);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM character_profiles WHERE user_id IN (?, ?)",
                 Integer.class,
                 ownerId,
                 otherUserId
+        )).isZero();
+    }
+
+    @Test
+    void rejectsSkippedTaskWithoutAwardingExperience() {
+        long userId = createUser("completion-user-5");
+        long taskId = createTask(userId, 35);
+        jdbcTemplate.update(
+                "UPDATE daily_tasks SET status = 'SKIPPED' WHERE id = ?",
+                taskId
+        );
+
+        assertThatThrownBy(() -> completionService.complete(userId, taskId))
+                .isInstanceOf(DailyTaskNotPendingException.class)
+                .hasMessage("Daily task %d cannot be completed from status SKIPPED".formatted(taskId));
+
+        assertTaskStatus(taskId, "SKIPPED");
+        assertNoCompletion(taskId);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM character_profiles WHERE user_id = ?",
+                Integer.class,
+                userId
+        )).isZero();
+    }
+
+    private void assertTaskStatus(long taskId, String expectedStatus) {
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM daily_tasks WHERE id = ?",
+                String.class,
+                taskId
+        )).isEqualTo(expectedStatus);
+    }
+
+    private void assertNoCompletion(long taskId) {
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM task_completions WHERE task_id = ?",
+                Integer.class,
+                taskId
         )).isZero();
     }
 
