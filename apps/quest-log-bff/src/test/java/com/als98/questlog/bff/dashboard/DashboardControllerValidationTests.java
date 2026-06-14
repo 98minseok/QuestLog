@@ -3,8 +3,11 @@ package com.als98.questlog.bff.dashboard;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.als98.questlog.bff.api.BackendApiExceptionHandler;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -24,7 +27,9 @@ class DashboardControllerValidationTests {
     void setUpMockMvc() {
         DashboardController controller =
                 new DashboardController(dashboardService, backendRestClient);
-        mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(controller)
+                .setControllerAdvice(new BackendApiExceptionHandler())
+                .build();
     }
 
     @Test
@@ -49,9 +54,11 @@ class DashboardControllerValidationTests {
 
     private void assertRejected(String path, String requestBody) throws Exception {
         mockMvc.perform(post(path)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestBody))
-                .andExpect(status().isBadRequest());
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message").isNotEmpty());
 
         verifyNoInteractions(dashboardService, backendRestClient);
     }
