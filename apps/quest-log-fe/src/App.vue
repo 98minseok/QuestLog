@@ -144,6 +144,21 @@ async function createTask() {
   })
 }
 
+async function archiveGoal(goal: Goal) {
+  await runAction(async () => {
+    await axios.put(`/api/bff/goals/${goal.id}`, {
+      title: goal.title,
+      description: goal.description,
+      status: 'ARCHIVED',
+      targetDate: goal.targetDate,
+    })
+    if (selectedGoalId.value === goal.id) {
+      selectedGoalId.value = null
+    }
+    notice.value = 'Goal archived.'
+  })
+}
+
 async function recommend(goalId: number) {
   await runAction(async () => {
     await axios.post(`/api/bff/goals/${goalId}/recommendations`, null, {
@@ -159,6 +174,13 @@ async function completeTask(task: DailyTask) {
       `/api/bff/daily-tasks/${task.id}/complete`,
     )
     notice.value = `Quest complete. +${response.data.xpAwarded} XP`
+  })
+}
+
+async function deletePendingTask(task: DailyTask) {
+  await runAction(async () => {
+    await axios.delete(`/api/bff/daily-tasks/${task.id}`)
+    notice.value = 'Daily task deleted.'
   })
 }
 
@@ -246,13 +268,22 @@ onMounted(loadDashboard)
                     <strong>{{ goal.title }}</strong>
                     <p>{{ goal.description || 'No description yet.' }}</p>
                   </div>
-                  <button
-                    class="text-button"
-                    :disabled="actionPending || goal.status !== 'ACTIVE'"
-                    @click="recommend(goal.id)"
-                  >
-                    Suggest quests
-                  </button>
+                  <div class="item-actions">
+                    <button
+                      class="text-button"
+                      :disabled="actionPending || goal.status !== 'ACTIVE'"
+                      @click="recommend(goal.id)"
+                    >
+                      Suggest quests
+                    </button>
+                    <button
+                      class="text-button muted"
+                      :disabled="actionPending || goal.status !== 'ACTIVE'"
+                      @click="archiveGoal(goal)"
+                    >
+                      Archive
+                    </button>
+                  </div>
                 </div>
                 <p v-if="goals.length === 0" class="empty-copy">
                   Create your first long-term quest to unlock daily recommendations.
@@ -334,6 +365,15 @@ onMounted(loadDashboard)
                     <span>{{ task.source === 'AI_RECOMMENDED' ? 'MOCK AI' : 'MANUAL' }}</span>
                   </div>
                   <b>+{{ task.xpReward }} XP</b>
+                  <button
+                    v-if="task.status === 'PENDING'"
+                    class="task-delete-button"
+                    :disabled="actionPending"
+                    :aria-label="`Delete ${task.title}`"
+                    @click="deletePendingTask(task)"
+                  >
+                    Delete
+                  </button>
                 </div>
                 <p v-if="tasks.length === 0" class="empty-copy">
                   No quests for today. Add one or ask for a recommendation.

@@ -248,6 +248,16 @@ form button {
   text-transform: uppercase;
 }
 
+.item-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 14px;
+}
+
+.text-button.muted {
+  color: #87948f;
+}
+
 .character-panel {
   position: relative;
   overflow: hidden;
@@ -361,6 +371,22 @@ form button {
   color: #e7ff54;
   font-family: 'DM Mono', monospace;
   font-size: 11px;
+}
+
+.task-delete-button {
+  flex: 0 0 auto;
+  padding: 7px 8px;
+  border: 1px solid #3b4743;
+  color: #899691;
+  background: transparent;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.task-delete-button:hover:not(:disabled) {
+  border-color: #c98c86;
+  color: #efaaa3;
 }
 
 .task-item.completed .task-copy {
@@ -480,6 +506,19 @@ footer code {
 
   .goal-item {
     flex-direction: column;
+  }
+
+  .item-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .task-item {
+    flex-wrap: wrap;
+  }
+
+  .task-delete-button {
+    margin-left: 42px;
   }
 
   .raid-state {
