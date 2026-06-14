@@ -235,6 +235,63 @@ class QuestLogApiTests {
                 .andExpect(jsonPath("$.message").value("Goal 999999 was not found"));
     }
 
+    @Test
+    void rejectsInvalidUpdatesWithoutMutatingResources() throws Exception {
+        long goalId = createGoal("Keep original goal");
+        long taskId = createTask(goalId, "Keep original task", 30);
+
+        assertInvalidUpdate(
+                "/api/be/goals/{resourceId}",
+                goalId,
+                """
+                {
+                  "title": " ",
+                  "description": "Invalid update"
+                }
+                """,
+                "title must not be blank"
+        );
+        assertInvalidUpdate(
+                "/api/be/daily-tasks/{resourceId}",
+                taskId,
+                """
+                {
+                  "goalId": %d,
+                  "title": "Invalid task update",
+                  "taskDate": "2026-06-14",
+                  "xpReward": 0
+                }
+                """.formatted(goalId),
+                "xpReward must be greater than or equal to 1"
+        );
+
+        assertResourceTitle("/api/be/goals/{resourceId}", goalId, "Keep original goal");
+        mockMvc.perform(get("/api/be/daily-tasks/{resourceId}", taskId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Keep original task"))
+                .andExpect(jsonPath("$.xpReward").value(30));
+    }
+
+    private void assertInvalidUpdate(
+            String path,
+            long resourceId,
+            String requestBody,
+            String expectedMessage
+    ) throws Exception {
+        mockMvc.perform(put(path, resourceId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(expectedMessage));
+    }
+
+    private void assertResourceTitle(String path, long resourceId, String expectedTitle)
+            throws Exception {
+        mockMvc.perform(get(path, resourceId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value(expectedTitle));
+    }
+
     private long createGoal(String title) throws Exception {
         MvcResult result = mockMvc.perform(post("/api/be/goals")
                         .contentType(MediaType.APPLICATION_JSON)
