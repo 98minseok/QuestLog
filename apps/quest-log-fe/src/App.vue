@@ -125,6 +125,18 @@ const filteredTasksEmptyMessage = computed(() =>
     ? 'No quests for today. Add one or ask for a recommendation.'
     : `No ${taskFilter.value.toLowerCase()} quests for today.`,
 )
+const taskFilterCounts = computed<Record<TaskFilter, number>>(() => {
+  const counts: Record<TaskFilter, number> = {
+    ALL: tasks.value.length,
+    PENDING: 0,
+    COMPLETED: 0,
+    SKIPPED: 0,
+  }
+  tasks.value.forEach((task) => {
+    counts[task.status] += 1
+  })
+  return counts
+})
 const progressPercent = computed(() => character.value?.currentLevelXp ?? 0)
 const clearedRaidIds = computed(
   () =>
@@ -132,7 +144,7 @@ const clearedRaidIds = computed(
       attempts.value
         .filter((attempt) => attempt.status === 'VICTORY')
         .map((attempt) => attempt.bossRaidId),
-    ),
+  ),
 )
 
 function apiMessage(caught: unknown) {
@@ -562,7 +574,7 @@ onMounted(loadDashboard)
                   :aria-pressed="taskFilter === filter"
                   @click="taskFilter = filter"
                 >
-                  {{ filter }}
+                  {{ filter }} {{ taskFilterCounts[filter] }}
                 </button>
               </div>
 
