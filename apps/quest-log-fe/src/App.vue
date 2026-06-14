@@ -49,6 +49,15 @@ type RaidAttempt = {
   damageDealt: number
 }
 
+type Dashboard = {
+  taskDate: string
+  goals: Goal[]
+  dailyTasks: DailyTask[]
+  character: CharacterProfile
+  raids: BossRaid[]
+  raidAttempts: RaidAttempt[]
+}
+
 const today = new Date().toLocaleDateString('en-CA')
 const loading = ref(true)
 const actionPending = ref(false)
@@ -80,19 +89,14 @@ async function loadDashboard() {
   loading.value = true
   error.value = ''
   try {
-    const [goalResponse, taskResponse, characterResponse, raidResponse, attemptResponse] =
-      await Promise.all([
-        axios.get<Goal[]>('/api/be/goals'),
-        axios.get<DailyTask[]>('/api/be/daily-tasks', { params: { taskDate: today } }),
-        axios.get<CharacterProfile>('/api/be/character'),
-        axios.get<BossRaid[]>('/api/be/boss-raids'),
-        axios.get<RaidAttempt[]>('/api/be/raid-attempts'),
-      ])
-    goals.value = goalResponse.data
-    tasks.value = taskResponse.data
-    character.value = characterResponse.data
-    raids.value = raidResponse.data
-    attempts.value = attemptResponse.data
+    const response = await axios.get<Dashboard>('/api/bff/dashboard', {
+      params: { taskDate: today },
+    })
+    goals.value = response.data.goals
+    tasks.value = response.data.dailyTasks
+    character.value = response.data.character
+    raids.value = response.data.raids
+    attempts.value = response.data.raidAttempts
     if (selectedGoalId.value === null && activeGoals.value.length > 0) {
       selectedGoalId.value = activeGoals.value[0]?.id ?? null
     }
@@ -106,7 +110,7 @@ async function loadDashboard() {
 async function createGoal() {
   if (!newGoalTitle.value.trim()) return
   await runAction(async () => {
-    const response = await axios.post<Goal>('/api/be/goals', {
+    const response = await axios.post<Goal>('/api/bff/goals', {
       title: newGoalTitle.value,
       description: 'Created from the dashboard',
     })
@@ -119,7 +123,7 @@ async function createGoal() {
 async function createTask() {
   if (!newTaskTitle.value.trim()) return
   await runAction(async () => {
-    await axios.post('/api/be/daily-tasks', {
+    await axios.post('/api/bff/daily-tasks', {
       goalId: selectedGoalId.value,
       title: newTaskTitle.value,
       description: 'Created from the dashboard',
@@ -133,7 +137,7 @@ async function createTask() {
 
 async function recommend(goalId: number) {
   await runAction(async () => {
-    await axios.post(`/api/be/goals/${goalId}/recommendations`, null, {
+    await axios.post(`/api/bff/goals/${goalId}/recommendations`, null, {
       params: { taskDate: today },
     })
     notice.value = 'Mock AI suggestions are ready for today.'
@@ -143,7 +147,7 @@ async function recommend(goalId: number) {
 async function completeTask(task: DailyTask) {
   await runAction(async () => {
     const response = await axios.post<{ xpAwarded: number }>(
-      `/api/be/daily-tasks/${task.id}/complete`,
+      `/api/bff/daily-tasks/${task.id}/complete`,
     )
     notice.value = `Quest complete. +${response.data.xpAwarded} XP`
   })

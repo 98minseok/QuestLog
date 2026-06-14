@@ -8,8 +8,11 @@ import org.springframework.web.client.RestClient;
 public class RestClientConfig {
 
     @Bean
-    public RestClient backendRestClient(BackendProperties backendProperties) {
-        return RestClient.builder()
+    public RestClient backendRestClient(
+            RestClient.Builder restClientBuilder,
+            BackendProperties backendProperties
+    ) {
+        return restClientBuilder
                 .baseUrl(backendProperties.baseUrl())
                 .build();
     }
