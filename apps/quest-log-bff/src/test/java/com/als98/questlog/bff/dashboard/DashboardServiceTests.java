@@ -2,6 +2,7 @@ package com.als98.questlog.bff.dashboard;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -70,6 +71,34 @@ class DashboardServiceTests {
                 .extracting(DashboardResponse.BossRaid::unlocked)
                 .isEqualTo(true);
         assertThat(dashboard.raidAttempts()).hasSize(1);
+        backend.verify();
+    }
+
+    @Test
+    void proxiesRaidAttemptAndMapsProgressionResult() {
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/boss-raids/3/attempts"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess("""
+                        {
+                          "attemptId":7,
+                          "bossRaidId":3,
+                          "bossName":"Deadline Dragon",
+                          "stage":1,
+                          "status":"VICTORY",
+                          "damageDealt":100,
+                          "xpAwarded":50,
+                          "totalXp":175,
+                          "level":2,
+                          "strength":2,
+                          "vitality":2
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        DashboardResponse.RaidAttemptResult result = dashboardService.attemptRaid(3);
+
+        assertThat(result.status()).isEqualTo("VICTORY");
+        assertThat(result.xpAwarded()).isEqualTo(50);
+        assertThat(result.totalXp()).isEqualTo(175);
         backend.verify();
     }
 

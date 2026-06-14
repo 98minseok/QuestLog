@@ -4,6 +4,8 @@ import com.als98.questlog.be.user.DevUserService;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -13,10 +15,16 @@ public class RaidController {
 
     private final DevUserService devUserService;
     private final JdbcTemplate jdbcTemplate;
+    private final RaidService raidService;
 
-    public RaidController(DevUserService devUserService, JdbcTemplate jdbcTemplate) {
+    public RaidController(
+            DevUserService devUserService,
+            JdbcTemplate jdbcTemplate,
+            RaidService raidService
+    ) {
         this.devUserService = devUserService;
         this.jdbcTemplate = jdbcTemplate;
+        this.raidService = raidService;
     }
 
     @GetMapping("/boss-raids")
@@ -68,5 +76,10 @@ public class RaidController {
                 ),
                 userId
         );
+    }
+
+    @PostMapping("/boss-raids/{bossRaidId}/attempts")
+    public RaidAttemptResult attempt(@PathVariable long bossRaidId) {
+        return raidService.attempt(devUserService.currentUserId(), bossRaidId);
     }
 }

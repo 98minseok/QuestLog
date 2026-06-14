@@ -171,6 +171,56 @@ class QuestLogApiTests {
     }
 
     @Test
+    void raidVictoryAwardsExperienceOnceAndAppearsInAttemptHistory() throws Exception {
+        long bossRaidId = jdbcTemplate.queryForObject(
+                "SELECT id FROM boss_raids WHERE stage = 1",
+                Long.class
+        );
+
+        mockMvc.perform(post("/api/be/boss-raids/{bossRaidId}/attempts", bossRaidId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bossName").value("Slime Sovereign"))
+                .andExpect(jsonPath("$.status").value("VICTORY"))
+                .andExpect(jsonPath("$.damageDealt").value(100))
+                .andExpect(jsonPath("$.xpAwarded").value(50))
+                .andExpect(jsonPath("$.totalXp").value(50));
+
+        mockMvc.perform(post("/api/be/boss-raids/{bossRaidId}/attempts", bossRaidId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Boss raid " + bossRaidId + " has already been cleared"));
+
+        mockMvc.perform(get("/api/be/raid-attempts"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].status").value("VICTORY"))
+                .andExpect(jsonPath("$[0].damageDealt").value(100));
+
+        mockMvc.perform(get("/api/be/character"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalXp").value(50));
+    }
+
+    @Test
+    void rejectsRaidAttemptUntilRequiredLevelIsReached() throws Exception {
+        long bossRaidId = jdbcTemplate.queryForObject(
+                "SELECT id FROM boss_raids WHERE stage = 2",
+                Long.class
+        );
+
+        mockMvc.perform(post("/api/be/boss-raids/{bossRaidId}/attempts", bossRaidId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Boss raid " + bossRaidId + " requires character level 3"));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM raid_attempts WHERE boss_raid_id = ?",
+                Integer.class,
+                bossRaidId
+        )).isZero();
+    }
+
+    @Test
     void validatesRequestsAndReturnsNotFoundForUnknownResources() throws Exception {
         mockMvc.perform(post("/api/be/goals")
                         .contentType(MediaType.APPLICATION_JSON)

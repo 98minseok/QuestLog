@@ -43,6 +43,7 @@ type BossRaid = {
 
 type RaidAttempt = {
   id: number
+  bossRaidId: number
   bossName: string
   stage: number
   status: string
@@ -77,6 +78,14 @@ const completedTaskCount = computed(
   () => tasks.value.filter((task) => task.status === 'COMPLETED').length,
 )
 const progressPercent = computed(() => character.value?.currentLevelXp ?? 0)
+const clearedRaidIds = computed(
+  () =>
+    new Set(
+      attempts.value
+        .filter((attempt) => attempt.status === 'VICTORY')
+        .map((attempt) => attempt.bossRaidId),
+    ),
+)
 
 function apiMessage(caught: unknown) {
   if (axios.isAxiosError(caught)) {
@@ -150,6 +159,15 @@ async function completeTask(task: DailyTask) {
       `/api/bff/daily-tasks/${task.id}/complete`,
     )
     notice.value = `Quest complete. +${response.data.xpAwarded} XP`
+  })
+}
+
+async function attemptRaid(raid: BossRaid) {
+  await runAction(async () => {
+    const response = await axios.post<{ xpAwarded: number }>(
+      `/api/bff/boss-raids/${raid.id}/attempts`,
+    )
+    notice.value = `${raid.name} cleared. +${response.data.xpAwarded} XP`
   })
 }
 
@@ -339,8 +357,22 @@ onMounted(loadDashboard)
                     <strong>{{ raid.name }}</strong>
                     <p>Level {{ raid.requiredLevel }} · {{ raid.maxHp }} HP · +{{ raid.xpReward }} XP</p>
                   </div>
-                  <span :class="['raid-state', raid.unlocked ? 'unlocked' : 'locked']">
-                    {{ raid.unlocked ? 'UNLOCKED' : 'LOCKED' }}
+                  <button
+                    v-if="raid.unlocked && !clearedRaidIds.has(raid.id)"
+                    class="raid-button"
+                    :disabled="actionPending"
+                    @click="attemptRaid(raid)"
+                  >
+                    Clear raid
+                  </button>
+                  <span
+                    v-else
+                    :class="[
+                      'raid-state',
+                      clearedRaidIds.has(raid.id) ? 'cleared' : 'locked',
+                    ]"
+                  >
+                    {{ clearedRaidIds.has(raid.id) ? 'CLEARED' : 'LOCKED' }}
                   </span>
                 </div>
               </div>

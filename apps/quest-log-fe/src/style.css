@@ -384,14 +384,30 @@ form button {
   font-size: 9px;
 }
 
-.raid-state.unlocked {
-  color: #5dffbc;
-  background: rgba(93, 255, 188, 0.08);
+.raid-state.cleared {
+  color: #10140e;
+  background: #e7ff54;
 }
 
 .raid-state.locked {
   color: #77827e;
   background: #1c2422;
+}
+
+.raid-button {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border: 1px solid #e7ff54;
+  color: #e7ff54;
+  background: transparent;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.raid-button:hover:not(:disabled) {
+  color: #10140e;
+  background: #e7ff54;
 }
 
 .empty-copy {

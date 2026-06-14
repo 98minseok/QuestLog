@@ -88,6 +88,11 @@ public class DashboardController {
                 .body(DailyTaskCompletionResponse.class);
     }
 
+    @PostMapping("/boss-raids/{bossRaidId}/attempts")
+    public DashboardResponse.RaidAttemptResult attemptRaid(@PathVariable long bossRaidId) {
+        return dashboardService.attemptRaid(bossRaidId);
+    }
+
     public record GoalRequest(
             @NotBlank @Size(max = 200) String title,
             String description,

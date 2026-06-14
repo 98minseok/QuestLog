@@ -58,48 +58,6 @@ class DailyTaskCompletionRepository {
         );
     }
 
-    CharacterProgression addExperience(long userId, int xpAwarded) {
-        return jdbcTemplate.queryForObject(
-                """
-                INSERT INTO character_profiles (
-                    user_id,
-                    total_xp,
-                    level,
-                    strength,
-                    vitality
-                )
-                VALUES (
-                    ?,
-                    ?,
-                    (? / 100) + 1,
-                    (? / 100) + 1,
-                    (? / 100) + 1
-                )
-                ON CONFLICT (user_id) DO UPDATE
-                SET total_xp = character_profiles.total_xp + EXCLUDED.total_xp,
-                    level = ((character_profiles.total_xp + EXCLUDED.total_xp) / 100 + 1)::integer,
-                    strength = ((character_profiles.total_xp + EXCLUDED.total_xp) / 100 + 1)::integer,
-                    vitality = ((character_profiles.total_xp + EXCLUDED.total_xp) / 100 + 1)::integer,
-                    updated_at = CURRENT_TIMESTAMP
-                RETURNING total_xp, level, strength, vitality
-                """,
-                (resultSet, rowNumber) -> new CharacterProgression(
-                        resultSet.getLong("total_xp"),
-                        resultSet.getInt("level"),
-                        resultSet.getInt("strength"),
-                        resultSet.getInt("vitality")
-                ),
-                userId,
-                xpAwarded,
-                xpAwarded,
-                xpAwarded,
-                xpAwarded
-        );
-    }
-
     record CompletableTask(long id, int xpReward) {
-    }
-
-    record CharacterProgression(long totalXp, int level, int strength, int vitality) {
     }
 }

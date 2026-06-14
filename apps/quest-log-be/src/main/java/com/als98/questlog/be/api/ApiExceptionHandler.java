@@ -1,5 +1,7 @@
 package com.als98.questlog.be.api;
 
+import com.als98.questlog.be.raid.RaidAlreadyClearedException;
+import com.als98.questlog.be.raid.RaidLockedException;
 import com.als98.questlog.be.task.DailyTaskAlreadyCompletedException;
 import com.als98.questlog.be.task.DailyTaskNotFoundException;
 import com.als98.questlog.be.task.DailyTaskNotPendingException;
@@ -25,9 +27,14 @@ public class ApiExceptionHandler {
         return Map.of("message", exception.getMessage());
     }
 
-    @ExceptionHandler({DailyTaskAlreadyCompletedException.class, DailyTaskNotPendingException.class})
+    @ExceptionHandler({
+            DailyTaskAlreadyCompletedException.class,
+            DailyTaskNotPendingException.class,
+            RaidAlreadyClearedException.class,
+            RaidLockedException.class
+    })
     @ResponseStatus(HttpStatus.CONFLICT)
-    Map<String, String> taskConflict(RuntimeException exception) {
+    Map<String, String> conflict(RuntimeException exception) {
         return Map.of("message", exception.getMessage());
     }
 

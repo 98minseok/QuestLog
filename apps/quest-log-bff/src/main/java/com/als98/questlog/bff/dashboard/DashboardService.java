@@ -62,4 +62,11 @@ public class DashboardService {
                 List.copyOf(raidAttempts)
         );
     }
+
+    public DashboardResponse.RaidAttemptResult attemptRaid(long bossRaidId) {
+        return backendRestClient.post()
+                .uri("/api/be/boss-raids/{bossRaidId}/attempts", bossRaidId)
+                .retrieve()
+                .body(DashboardResponse.RaidAttemptResult.class);
+    }
 }
