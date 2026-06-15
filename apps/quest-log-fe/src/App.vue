@@ -1,10 +1,22 @@
 <script setup lang="ts">
 import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
+import {
+  archiveGoalRequest,
+  completeTaskRequest,
+  deleteTaskRequest,
+  fetchDashboard,
+  skipTaskRequest,
+  taskUpdatePayload,
+  type BossRaid,
+  type CharacterProfile,
+  type DailyTask,
+  type Goal,
+  type RaidAttempt,
+} from './dashboardApi'
 
 const GOAL_STATUS = {
   active: 'ACTIVE',
-  archived: 'ARCHIVED',
 } as const
 
 const TASK_STATUS = {
@@ -15,66 +27,7 @@ const TASK_STATUS = {
 
 const TASK_FILTERS = ['ALL', ...Object.values(TASK_STATUS)] as const
 
-type TaskStatus = (typeof TASK_STATUS)[keyof typeof TASK_STATUS]
 type TaskFilter = (typeof TASK_FILTERS)[number]
-type TaskSource = 'AI_RECOMMENDED' | 'MANUAL'
-
-type Goal = {
-  id: number
-  title: string
-  description: string | null
-  status: string
-  targetDate: string | null
-}
-
-type DailyTask = {
-  id: number
-  goalId: number | null
-  title: string
-  description: string | null
-  taskDate: string
-  status: TaskStatus
-  source: TaskSource
-  xpReward: number
-}
-
-type CharacterProfile = {
-  displayName: string
-  level: number
-  totalXp: number
-  currentLevelXp: number
-  xpToNextLevel: number
-  strength: number
-  vitality: number
-}
-
-type BossRaid = {
-  id: number
-  stage: number
-  name: string
-  requiredLevel: number
-  maxHp: number
-  xpReward: number
-  unlocked: boolean
-}
-
-type RaidAttempt = {
-  id: number
-  bossRaidId: number
-  bossName: string
-  stage: number
-  status: string
-  damageDealt: number
-}
-
-type Dashboard = {
-  taskDate: string
-  goals: Goal[]
-  dailyTasks: DailyTask[]
-  character: CharacterProfile
-  raids: BossRaid[]
-  raidAttempts: RaidAttempt[]
-}
 
 const today = new Date().toLocaleDateString('en-CA')
 const loading = ref(true)
@@ -158,14 +111,12 @@ async function loadDashboard() {
   loading.value = true
   error.value = ''
   try {
-    const response = await axios.get<Dashboard>('/api/bff/dashboard', {
-      params: { taskDate: today },
-    })
-    goals.value = response.data.goals
-    tasks.value = response.data.dailyTasks
-    character.value = response.data.character
-    raids.value = response.data.raids
-    attempts.value = response.data.raidAttempts
+    const dashboard = await fetchDashboard(today)
+    goals.value = dashboard.goals
+    tasks.value = dashboard.dailyTasks
+    character.value = dashboard.character
+    raids.value = dashboard.raids
+    attempts.value = dashboard.raidAttempts
     if (selectedGoalId.value === null && activeGoals.value.length > 0) {
       selectedGoalId.value = activeGoals.value[0]?.id ?? null
     }
@@ -211,12 +162,7 @@ async function createTask() {
 async function archiveGoal(goal: Goal) {
   await runAction(
     async () => {
-      await axios.put(`/api/bff/goals/${goal.id}`, {
-        title: goal.title,
-        description: goal.description,
-        status: GOAL_STATUS.archived,
-        targetDate: goal.targetDate,
-      })
+      await archiveGoalRequest(goal)
       if (selectedGoalId.value === goal.id) {
         selectedGoalId.value = null
       }
@@ -318,10 +264,7 @@ async function saveTask(task: DailyTask) {
 async function completeTask(task: DailyTask) {
   await runAction(
     async () => {
-      const response = await axios.post<{ xpAwarded: number }>(
-        `/api/bff/daily-tasks/${task.id}/complete`,
-      )
-      return response.data.xpAwarded
+      return completeTaskRequest(task.id)
     },
     (xpAwarded) => `Quest complete. +${xpAwarded} XP`,
   )
@@ -330,35 +273,16 @@ async function completeTask(task: DailyTask) {
 async function skipPendingTask(task: DailyTask) {
   await runAction(
     async () => {
-      await axios.put(`/api/bff/daily-tasks/${task.id}`, taskUpdatePayload(task, {
-        status: TASK_STATUS.skipped,
-      }))
+      await skipTaskRequest(task)
     },
     'Daily task skipped.',
   )
 }
 
-function taskUpdatePayload(
-  task: DailyTask,
-  updates: Partial<
-    Pick<DailyTask, 'goalId' | 'title' | 'description' | 'status' | 'xpReward'>
-  >,
-) {
-  return {
-    goalId: task.goalId,
-    title: task.title,
-    description: task.description,
-    taskDate: task.taskDate,
-    status: task.status,
-    xpReward: task.xpReward,
-    ...updates,
-  }
-}
-
 async function deletePendingTask(taskId: number) {
   await runAction(
     async () => {
-      await axios.delete(`/api/bff/daily-tasks/${taskId}`)
+      await deleteTaskRequest(taskId)
     },
     'Daily task deleted.',
   )
