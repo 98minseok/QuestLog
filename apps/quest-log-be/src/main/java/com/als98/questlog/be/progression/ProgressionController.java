@@ -1,6 +1,6 @@
 package com.als98.questlog.be.progression;
 
-import com.als98.questlog.be.user.DevUserService;
+import com.als98.questlog.be.user.CurrentUserService;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -11,17 +11,17 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/be/character")
 public class ProgressionController {
 
-    private final DevUserService devUserService;
+    private final CurrentUserService currentUserService;
     private final JdbcTemplate jdbcTemplate;
 
-    public ProgressionController(DevUserService devUserService, JdbcTemplate jdbcTemplate) {
-        this.devUserService = devUserService;
+    public ProgressionController(CurrentUserService currentUserService, JdbcTemplate jdbcTemplate) {
+        this.currentUserService = currentUserService;
         this.jdbcTemplate = jdbcTemplate;
     }
 
     @GetMapping
     public CharacterProfile get() {
-        long userId = devUserService.currentUserId();
+        long userId = currentUserService.currentUserId();
         List<CharacterProfile> profiles = jdbcTemplate.query(
                 """
                 SELECT u.id AS user_id, u.display_name,

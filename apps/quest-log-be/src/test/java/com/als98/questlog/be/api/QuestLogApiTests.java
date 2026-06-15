@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
 import com.als98.questlog.be.TestcontainersConfiguration;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -36,6 +37,65 @@ class QuestLogApiTests {
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Test
+    void mapsAuthenticatedJwtClaimsToTheApplicationUser() throws Exception {
+        mockMvc.perform(get("/api/be/character")
+                        .with(jwt().jwt(token -> token
+                                .subject("keycloak-user-123")
+                                .claim("name", "Authenticated Hero")
+                                .claim("zoneinfo", "America/New_York"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("Authenticated Hero"));
+
+        assertThat(jdbcTemplate.queryForMap(
+                """
+                SELECT external_subject, display_name, timezone
+                FROM app_users
+                WHERE external_subject = 'keycloak-user-123'
+                """
+        )).containsEntry("external_subject", "keycloak-user-123")
+                .containsEntry("display_name", "Authenticated Hero")
+                .containsEntry("timezone", "America/New_York");
+    }
+
+    @Test
+    void keepsAuthenticatedUsersResourcesIsolated() throws Exception {
+        MvcResult created = mockMvc.perform(post("/api/be/goals")
+                        .with(jwt().jwt(token -> token.subject("user-alice")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Alice private goal",
+                                  "targetDate": "2026-07-01"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long goalId = objectMapper.readTree(created.getResponse().getContentAsString())
+                .get("id").asLong();
+
+        mockMvc.perform(get("/api/be/goals/{goalId}", goalId)
+                        .with(jwt().jwt(token -> token.subject("user-bob"))))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/be/goals")
+                        .with(jwt().jwt(token -> token.subject("user-bob"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void usesDevelopmentUserWhenRequestIsUnauthenticated() throws Exception {
+        mockMvc.perform(get("/api/be/character"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.displayName").value("Quest Hero"));
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT timezone FROM app_users WHERE external_subject = 'dev-user'",
+                String.class
+        )).isEqualTo("Asia/Seoul");
+    }
 
     @Test
     void supportsGoalAndDailyTaskCrud() throws Exception {

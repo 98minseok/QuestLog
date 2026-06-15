@@ -1,6 +1,6 @@
 package com.als98.questlog.be.raid;
 
-import com.als98.questlog.be.user.DevUserService;
+import com.als98.questlog.be.user.CurrentUserService;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,23 +13,23 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/be")
 public class RaidController {
 
-    private final DevUserService devUserService;
+    private final CurrentUserService currentUserService;
     private final JdbcTemplate jdbcTemplate;
     private final RaidService raidService;
 
     public RaidController(
-            DevUserService devUserService,
+            CurrentUserService currentUserService,
             JdbcTemplate jdbcTemplate,
             RaidService raidService
     ) {
-        this.devUserService = devUserService;
+        this.currentUserService = currentUserService;
         this.jdbcTemplate = jdbcTemplate;
         this.raidService = raidService;
     }
 
     @GetMapping("/boss-raids")
     public List<BossRaid> raids() {
-        long userId = devUserService.currentUserId();
+        long userId = currentUserService.currentUserId();
         return jdbcTemplate.query(
                 """
                 SELECT b.*,
@@ -55,7 +55,7 @@ public class RaidController {
 
     @GetMapping("/raid-attempts")
     public List<RaidAttempt> attempts() {
-        long userId = devUserService.currentUserId();
+        long userId = currentUserService.currentUserId();
         return jdbcTemplate.query(
                 """
                 SELECT a.*, b.name AS boss_name, b.stage
@@ -80,6 +80,6 @@ public class RaidController {
 
     @PostMapping("/boss-raids/{bossRaidId}/attempts")
     public RaidAttemptResult attempt(@PathVariable long bossRaidId) {
-        return raidService.attempt(devUserService.currentUserId(), bossRaidId);
+        return raidService.attempt(currentUserService.currentUserId(), bossRaidId);
     }
 }

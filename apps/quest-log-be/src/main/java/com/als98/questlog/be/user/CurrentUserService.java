@@ -5,28 +5,33 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class DevUserService {
+public class CurrentUserService {
 
-    public static final String EXTERNAL_SUBJECT = "dev-user";
-
+    private final CurrentUserResolver currentUserResolver;
     private final JdbcTemplate jdbcTemplate;
 
-    public DevUserService(JdbcTemplate jdbcTemplate) {
+    public CurrentUserService(CurrentUserResolver currentUserResolver, JdbcTemplate jdbcTemplate) {
+        this.currentUserResolver = currentUserResolver;
         this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional
     public long currentUserId() {
+        CurrentUser currentUser = currentUserResolver.resolve();
         return jdbcTemplate.queryForObject(
                 """
                 INSERT INTO app_users (external_subject, display_name, timezone)
-                VALUES (?, 'Quest Hero', 'Asia/Seoul')
+                VALUES (?, ?, ?)
                 ON CONFLICT (external_subject) DO UPDATE
-                SET updated_at = CURRENT_TIMESTAMP
+                SET display_name = EXCLUDED.display_name,
+                    timezone = EXCLUDED.timezone,
+                    updated_at = CURRENT_TIMESTAMP
                 RETURNING id
                 """,
                 Long.class,
-                EXTERNAL_SUBJECT
+                currentUser.subject(),
+                currentUser.displayName(),
+                currentUser.timezone()
         );
     }
 }

@@ -7,6 +7,8 @@ import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.PUT;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.headerDoesNotExist;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withNoContent;
@@ -14,17 +16,24 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import com.als98.questlog.bff.config.BackendProperties;
 import com.als98.questlog.bff.config.RestClientConfig;
+import com.als98.questlog.bff.user.CurrentUserResolver;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.test.web.client.MockRestServiceServer;
 
 @RestClientTest(DashboardService.class)
-@Import(RestClientConfig.class)
+@Import({RestClientConfig.class, CurrentUserResolver.class})
 @EnableConfigurationProperties(BackendProperties.class)
 class DashboardServiceTests {
 
@@ -33,6 +42,47 @@ class DashboardServiceTests {
 
     @Autowired
     private MockRestServiceServer backend;
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void forwardsAuthenticatedJwtToBackendRequests() {
+        Jwt jwt = new Jwt(
+                "forwarded-token",
+                Instant.parse("2026-06-15T00:00:00Z"),
+                Instant.parse("2026-06-15T01:00:00Z"),
+                Map.of("alg", "none"),
+                Map.of("sub", "authenticated-user")
+        );
+        SecurityContextHolder.getContext().setAuthentication(
+                new TestingAuthenticationToken(jwt, jwt.getTokenValue(), "ROLE_USER")
+        );
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/boss-raids/3/attempts"))
+                .andExpect(method(POST))
+                .andExpect(header("Authorization", "Bearer forwarded-token"))
+                .andRespond(withSuccess("""
+                        {
+                          "attemptId":7,
+                          "bossRaidId":3,
+                          "bossName":"Deadline Dragon",
+                          "stage":1,
+                          "status":"VICTORY",
+                          "damageDealt":100,
+                          "xpAwarded":50,
+                          "totalXp":50,
+                          "level":1,
+                          "strength":1,
+                          "vitality":1
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        dashboardService.attemptRaid(3);
+
+        backend.verify();
+    }
 
     @Test
     void aggregatesDashboardResourcesForRequestedDate() {
@@ -82,6 +132,7 @@ class DashboardServiceTests {
     void proxiesRaidAttemptAndMapsProgressionResult() {
         backend.expect(once(), requestTo("http://localhost:8081/api/be/boss-raids/3/attempts"))
                 .andExpect(method(POST))
+                .andExpect(headerDoesNotExist("Authorization"))
                 .andRespond(withSuccess("""
                         {
                           "attemptId":7,

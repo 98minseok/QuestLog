@@ -1,6 +1,6 @@
 package com.als98.questlog.be.goal;
 
-import com.als98.questlog.be.user.DevUserService;
+import com.als98.questlog.be.user.CurrentUserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -21,29 +21,29 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/be/goals")
 public class GoalController {
 
-    private final DevUserService devUserService;
+    private final CurrentUserService currentUserService;
     private final GoalService goalService;
 
-    public GoalController(DevUserService devUserService, GoalService goalService) {
-        this.devUserService = devUserService;
+    public GoalController(CurrentUserService currentUserService, GoalService goalService) {
+        this.currentUserService = currentUserService;
         this.goalService = goalService;
     }
 
     @GetMapping
     public List<Goal> list() {
-        return goalService.findAll(devUserService.currentUserId());
+        return goalService.findAll(currentUserService.currentUserId());
     }
 
     @GetMapping("/{goalId}")
     public Goal get(@PathVariable long goalId) {
-        return goalService.find(devUserService.currentUserId(), goalId);
+        return goalService.find(currentUserService.currentUserId(), goalId);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public Goal create(@Valid @RequestBody GoalRequest request) {
         return goalService.create(
-                devUserService.currentUserId(),
+                currentUserService.currentUserId(),
                 request.title(),
                 request.description(),
                 request.targetDate()
@@ -53,7 +53,7 @@ public class GoalController {
     @PutMapping("/{goalId}")
     public Goal update(@PathVariable long goalId, @Valid @RequestBody GoalRequest request) {
         return goalService.update(
-                devUserService.currentUserId(),
+                currentUserService.currentUserId(),
                 goalId,
                 request.title(),
                 request.description(),
@@ -65,7 +65,7 @@ public class GoalController {
     @DeleteMapping("/{goalId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable long goalId) {
-        goalService.delete(devUserService.currentUserId(), goalId);
+        goalService.delete(currentUserService.currentUserId(), goalId);
     }
 
     public record GoalRequest(

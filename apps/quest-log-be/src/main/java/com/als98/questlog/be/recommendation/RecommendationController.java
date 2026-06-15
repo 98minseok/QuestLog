@@ -1,7 +1,7 @@
 package com.als98.questlog.be.recommendation;
 
 import com.als98.questlog.be.task.DailyTask;
-import com.als98.questlog.be.user.DevUserService;
+import com.als98.questlog.be.user.CurrentUserService;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -15,14 +15,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/be/goals/{goalId}/recommendations")
 public class RecommendationController {
 
-    private final DevUserService devUserService;
+    private final CurrentUserService currentUserService;
     private final MockRecommendationService recommendationService;
 
     public RecommendationController(
-            DevUserService devUserService,
+            CurrentUserService currentUserService,
             MockRecommendationService recommendationService
     ) {
-        this.devUserService = devUserService;
+        this.currentUserService = currentUserService;
         this.recommendationService = recommendationService;
     }
 
@@ -32,7 +32,7 @@ public class RecommendationController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate taskDate
     ) {
         return recommendationService.recommend(
-                devUserService.currentUserId(),
+                currentUserService.currentUserId(),
                 goalId,
                 taskDate == null ? LocalDate.now() : taskDate
         );

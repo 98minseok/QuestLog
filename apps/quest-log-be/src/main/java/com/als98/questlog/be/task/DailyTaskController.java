@@ -1,6 +1,6 @@
 package com.als98.questlog.be.task;
 
-import com.als98.questlog.be.user.DevUserService;
+import com.als98.questlog.be.user.CurrentUserService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -26,16 +26,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/be/daily-tasks")
 public class DailyTaskController {
 
-    private final DevUserService devUserService;
+    private final CurrentUserService currentUserService;
     private final DailyTaskService dailyTaskService;
     private final DailyTaskCompletionService completionService;
 
     public DailyTaskController(
-            DevUserService devUserService,
+            CurrentUserService currentUserService,
             DailyTaskService dailyTaskService,
             DailyTaskCompletionService completionService
     ) {
-        this.devUserService = devUserService;
+        this.currentUserService = currentUserService;
         this.dailyTaskService = dailyTaskService;
         this.completionService = completionService;
     }
@@ -45,19 +45,19 @@ public class DailyTaskController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate taskDate,
             @RequestParam(required = false) Long goalId
     ) {
-        return dailyTaskService.findAll(devUserService.currentUserId(), taskDate, goalId);
+        return dailyTaskService.findAll(currentUserService.currentUserId(), taskDate, goalId);
     }
 
     @GetMapping("/{taskId}")
     public DailyTask get(@PathVariable long taskId) {
-        return dailyTaskService.find(devUserService.currentUserId(), taskId);
+        return dailyTaskService.find(currentUserService.currentUserId(), taskId);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public DailyTask create(@Valid @RequestBody DailyTaskRequest request) {
         return dailyTaskService.create(
-                devUserService.currentUserId(),
+                currentUserService.currentUserId(),
                 request.goalId(),
                 request.title(),
                 request.description(),
@@ -70,7 +70,7 @@ public class DailyTaskController {
     @PutMapping("/{taskId}")
     public DailyTask update(@PathVariable long taskId, @Valid @RequestBody DailyTaskRequest request) {
         return dailyTaskService.update(
-                devUserService.currentUserId(),
+                currentUserService.currentUserId(),
                 taskId,
                 request.goalId(),
                 request.title(),
@@ -84,12 +84,12 @@ public class DailyTaskController {
     @DeleteMapping("/{taskId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable long taskId) {
-        dailyTaskService.delete(devUserService.currentUserId(), taskId);
+        dailyTaskService.delete(currentUserService.currentUserId(), taskId);
     }
 
     @PostMapping("/{taskId}/complete")
     public DailyTaskCompletionResult complete(@PathVariable long taskId) {
-        return completionService.complete(devUserService.currentUserId(), taskId);
+        return completionService.complete(currentUserService.currentUserId(), taskId);
     }
 
     public record DailyTaskRequest(
