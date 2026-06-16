@@ -119,7 +119,8 @@ public class DashboardController {
             @NotBlank @Size(max = 200) String title,
             String description,
             String status,
-            LocalDate targetDate
+            LocalDate targetDate,
+            LocalDate taskDate
     ) {
     }
 

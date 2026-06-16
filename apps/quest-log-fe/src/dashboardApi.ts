@@ -60,6 +60,13 @@ export type Dashboard = {
   raidAttempts: RaidAttempt[]
 }
 
+export type GoalCreateInput = {
+  title: string
+  description: string
+  targetDate?: string | null
+  taskDate: string
+}
+
 export function taskUpdatePayload(
   task: DailyTask,
   updates: Partial<
@@ -80,6 +87,16 @@ export function taskUpdatePayload(
 export async function fetchDashboard(taskDate: string) {
   const response = await axios.get<Dashboard>('/api/bff/dashboard', {
     params: { taskDate },
+  })
+  return response.data
+}
+
+export async function createGoalRequest(input: GoalCreateInput) {
+  const response = await axios.post<Goal>('/api/bff/goals', {
+    title: input.title,
+    description: input.description,
+    targetDate: input.targetDate ?? null,
+    taskDate: input.taskDate,
   })
   return response.data
 }

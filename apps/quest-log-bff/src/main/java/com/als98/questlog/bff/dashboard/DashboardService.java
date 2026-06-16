@@ -71,11 +71,24 @@ public class DashboardService {
     }
 
     public DashboardResponse.Goal createGoal(DashboardController.GoalRequest request) {
-        return backendRestClient.post()
+        DashboardResponse.Goal goal = backendRestClient.post()
                 .uri("/api/be/goals")
-                .body(request)
+                .body(new BackendGoalRequest(
+                        request.title(),
+                        request.description(),
+                        request.status(),
+                        request.targetDate()
+                ))
                 .retrieve()
                 .body(DashboardResponse.Goal.class);
+        backendRestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/be/goals/{goalId}/recommendations")
+                        .queryParam("taskDate", request.taskDate() == null ? LocalDate.now() : request.taskDate())
+                        .build(goal.id()))
+                .retrieve()
+                .toBodilessEntity();
+        return goal;
     }
 
     public DashboardResponse.Goal updateGoal(
@@ -122,5 +135,13 @@ public class DashboardService {
                 .uri("/api/be/daily-tasks/{taskId}", taskId)
                 .retrieve()
                 .toBodilessEntity();
+    }
+
+    private record BackendGoalRequest(
+            String title,
+            String description,
+            String status,
+            LocalDate targetDate
+    ) {
     }
 }

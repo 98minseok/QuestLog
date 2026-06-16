@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   archiveGoalRequest,
   completeTaskRequest,
+  createGoalRequest,
   deleteTaskRequest,
   fetchDashboard,
   skipTaskRequest,
@@ -66,6 +67,26 @@ describe('dashboard API lifecycle requests', () => {
       description: goal.description,
       status: 'ARCHIVED',
       targetDate: goal.targetDate,
+    })
+  })
+
+  it('creates a goal with the task date used for automatic recommendations', async () => {
+    mockedAxios.post.mockResolvedValue({ data: goal })
+
+    await expect(
+      createGoalRequest({
+        title: goal.title,
+        description: goal.description ?? '',
+        targetDate: goal.targetDate,
+        taskDate: '2026-06-16',
+      }),
+    ).resolves.toBe(goal)
+
+    expect(mockedAxios.post).toHaveBeenCalledWith('/api/bff/goals', {
+      title: goal.title,
+      description: goal.description,
+      targetDate: goal.targetDate,
+      taskDate: '2026-06-16',
     })
   })
 

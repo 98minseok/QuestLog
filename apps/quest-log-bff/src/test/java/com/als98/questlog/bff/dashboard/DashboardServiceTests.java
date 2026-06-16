@@ -163,7 +163,8 @@ class DashboardServiceTests {
                 "Ship MVP",
                 "Finish the playable loop",
                 "ARCHIVED",
-                LocalDate.of(2026, 7, 1)
+                LocalDate.of(2026, 7, 1),
+                null
         );
         backend.expect(once(), requestTo("http://localhost:8081/api/be/goals/3"))
                 .andExpect(method(PUT))
@@ -194,6 +195,59 @@ class DashboardServiceTests {
         dashboardService.deleteGoal(3);
 
         assertThat(updated.status()).isEqualTo("ARCHIVED");
+        backend.verify();
+    }
+
+    @Test
+    void createsGoalAndRequestsDailyRecommendationsForTaskDate() {
+        DashboardController.GoalRequest request = new DashboardController.GoalRequest(
+                "Study Korean",
+                "Build a daily grammar habit",
+                null,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 6, 16)
+        );
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/goals"))
+                .andExpect(method(POST))
+                .andExpect(content().json("""
+                        {
+                          "title":"Study Korean",
+                          "description":"Build a daily grammar habit",
+                          "status":null,
+                          "targetDate":"2026-07-01"
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                          "id":9,
+                          "title":"Study Korean",
+                          "description":"Build a daily grammar habit",
+                          "status":"ACTIVE",
+                          "targetDate":"2026-07-01",
+                          "createdAt":"2026-06-16T09:00:00Z",
+                          "updatedAt":"2026-06-16T09:00:00Z"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/goals/9/recommendations?taskDate=2026-06-16"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess("""
+                        [{
+                          "id":14,
+                          "goalId":9,
+                          "title":"Plan the next step for Study Korean",
+                          "description":"Write one concrete outcome.",
+                          "taskDate":"2026-06-16",
+                          "status":"PENDING",
+                          "source":"AI_RECOMMENDED",
+                          "xpReward":10,
+                          "createdAt":"2026-06-16T09:00:00Z",
+                          "updatedAt":"2026-06-16T09:00:00Z"
+                        }]
+                        """, MediaType.APPLICATION_JSON));
+
+        DashboardResponse.Goal created = dashboardService.createGoal(request);
+
+        assertThat(created.id()).isEqualTo(9);
         backend.verify();
     }
 
