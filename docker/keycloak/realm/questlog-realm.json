@@ -1,0 +1,67 @@
+{
+  "realm": "questlog",
+  "enabled": true,
+  "displayName": "QuestLog",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": false,
+  "clients": [
+    {
+      "clientId": "questlog-frontend",
+      "name": "QuestLog Frontend",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/*"
+      }
+    },
+    {
+      "clientId": "questlog-backend",
+      "name": "QuestLog Backend Resource Server",
+      "enabled": true,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    },
+    {
+      "clientId": "questlog-bff",
+      "name": "QuestLog BFF Resource Server",
+      "enabled": true,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "questlog",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Quest",
+      "lastName": "Hero",
+      "email": "questlog@example.test",
+      "attributes": {
+        "zoneinfo": [
+          "Asia/Seoul"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "questlog",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

@@ -20,7 +20,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.6.1
     container_name: questlog-keycloak
-    command: start-dev
+    command: start-dev --import-realm
     ports:
       - "18080:8080"
     environment:
@@ -30,6 +30,8 @@ services:
       KC_DB_PASSWORD: keycloak
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./docker/keycloak/realm:/opt/keycloak/data/import:ro
     depends_on:
       postgres:
         condition: service_healthy

@@ -6,6 +6,7 @@ import { createVuetify } from 'vuetify'
 import '@mdi/font/css/materialdesignicons.css'
 import './style.css'
 import App from './App.vue'
+import { initializeAuth, installAuthInterceptor } from './auth'
 
 const router = createRouter({
     history: createWebHistory(),
@@ -14,8 +15,15 @@ const router = createRouter({
 const pinia = createPinia()
 const vuetify = createVuetify()
 
-createApp(App)
-    .use(pinia)
-    .use(router)
-    .use(vuetify)
-    .mount('#app')
+async function bootstrap() {
+    await initializeAuth()
+    installAuthInterceptor()
+
+    createApp(App)
+        .use(pinia)
+        .use(router)
+        .use(vuetify)
+        .mount('#app')
+}
+
+void bootstrap()

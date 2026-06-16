@@ -14,16 +14,17 @@ the backend maps these claims into `app_users`:
 The user row is created on first access and its display name/timezone are refreshed on later requests.
 All goal, task, progression, and raid queries continue to use the resolved application user ID.
 
-JWT validation is opt-in for this first increment. Configure the same issuer on the backend and BFF:
+The default `local` profile permits unauthenticated development requests. The `dev` profile has
+the same fallback policy. Every other profile requires JWT authentication for `/api/be/**`, except
+the public health endpoint.
 
 ```powershell
-$env:SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI="http://localhost:18080/realms/questlog"
+./mvnw spring-boot:run "-Dspring-boot.run.profiles=prod"
 ```
 
-When no JWT decoder and no authenticated principal are available, local unauthenticated requests use the
-development fallback `dev-user` / `Quest Hero` / `Asia/Seoul`. This fallback keeps the existing local
-workflow and tests working; it must not be enabled as the deployment security policy for a shared or
-production environment.
+The `prod` profile defaults the issuer to `http://localhost:18080/realms/questlog`. Override it with
+`QUESTLOG_AUTH_ISSUER_URI`. Local unauthenticated requests use the development fallback
+`dev-user` / `Quest Hero` / `Asia/Seoul`.
 
 The BFF resolves the same claims and forwards an authenticated JWT bearer token to the backend. It does
 not create a synthetic bearer token for development fallback requests.

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
+import { authState, login, logout } from './auth'
 import {
   archiveGoalRequest,
   completeTaskRequest,
@@ -98,6 +99,10 @@ const clearedRaidIds = computed(
         .filter((attempt) => attempt.status === 'VICTORY')
         .map((attempt) => attempt.bossRaidId),
   ),
+)
+const authEnabled = computed(() => authState.mode === 'keycloak')
+const authLabel = computed(() =>
+  authState.authenticated ? authState.username || 'Authenticated user' : 'Signed out',
 )
 
 function apiMessage(caught: unknown) {
@@ -329,7 +334,13 @@ async function confirmAction(message: string, action: () => Promise<void>) {
   }
 }
 
-onMounted(loadDashboard)
+onMounted(() => {
+  if (authState.authenticated) {
+    void loadDashboard()
+  } else {
+    loading.value = false
+  }
+})
 </script>
 
 <template>
@@ -344,18 +355,38 @@ onMounted(loadDashboard)
               Build goals, clear daily quests, earn XP, and unlock the next raid.
             </p>
           </div>
-          <div class="hero-stats">
-            <div>
-              <span>ACTIVE GOALS</span>
-              <strong>{{ activeGoals.length }}</strong>
+          <div class="hero-side">
+            <div v-if="authEnabled" class="auth-panel">
+              <span>{{ authLabel }}</span>
+              <button v-if="authState.authenticated" type="button" @click="logout">
+                Log out
+              </button>
+              <button v-else type="button" @click="login">Log in</button>
             </div>
-            <div>
-              <span>TODAY CLEARED</span>
-              <strong>{{ completedTaskCount }}/{{ tasks.length }}</strong>
+            <div class="hero-stats">
+              <div>
+                <span>ACTIVE GOALS</span>
+                <strong>{{ activeGoals.length }}</strong>
+              </div>
+              <div>
+                <span>TODAY CLEARED</span>
+                <strong>{{ completedTaskCount }}/{{ tasks.length }}</strong>
+              </div>
             </div>
           </div>
         </header>
 
+        <v-alert v-if="authState.error" type="warning" variant="tonal" class="mb-4">
+          {{ authState.error }}
+        </v-alert>
+        <v-alert
+          v-if="authEnabled && !authState.authenticated"
+          type="info"
+          variant="tonal"
+          class="mb-4"
+        >
+          Log in with Keycloak to load your QuestLog dashboard.
+        </v-alert>
         <v-alert v-if="error" type="error" variant="tonal" closable class="mb-4">
           {{ error }}
         </v-alert>
@@ -648,7 +679,12 @@ onMounted(loadDashboard)
         </template>
 
         <footer>
-          Development mode uses the temporary <code>dev-user</code> backend identity.
+          <template v-if="authEnabled">
+            Keycloak mode sends the current bearer token to the BFF.
+          </template>
+          <template v-else>
+            Development mode uses the temporary <code>dev-user</code> backend identity.
+          </template>
         </footer>
       </div>
     </v-main>

@@ -1,4 +1,6 @@
 spring:
+  profiles:
+    default: local
   datasource:
     url: jdbc:postgresql://localhost:5434/questlog
     username: questlog
