@@ -40,6 +40,15 @@
       "bearerOnly": true,
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false
+    },
+    {
+      "clientId": "questlog-smoke",
+      "name": "QuestLog Local Smoke Client",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false
     }
   ],
   "users": [

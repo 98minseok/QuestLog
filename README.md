@@ -31,6 +31,7 @@ Keycloak imports `docker/keycloak/realm/questlog-realm.json` on first startup.
 - Realm: `questlog`
 - Public frontend client: `questlog-frontend`
 - Resource-server clients: `questlog-backend`, `questlog-bff`
+- Local smoke client: `questlog-smoke`
 - Development user: `questlog` / `questlog`
 - Issuer: `http://localhost:18080/realms/questlog`
 
@@ -85,6 +86,31 @@ For another issuer, set `QUESTLOG_AUTH_ISSUER_URI` before starting backend and B
 Spring profile other than `local` or `dev` uses the JWT-required security policy; the `prod`
 profile supplies the issuer property.
 
+## Authenticated Smoke Workflow
+
+The repo-local smoke script starts Docker Compose services if needed, obtains a token for the
+local `questlog` user, starts backend and BFF with the `prod` profile when they are not already
+running, verifies anonymous requests are rejected, and verifies bearer-authenticated backend and
+BFF dashboard access. BFF dashboard verification exercises bearer forwarding to the backend.
+
+From Windows Git Bash:
+
+```bash
+cd /c/hermes/QuestLog
+node scripts/auth-smoke.mjs
+```
+
+If backend and BFF are already running with the `prod` profile:
+
+```bash
+cd /c/hermes/QuestLog
+node scripts/auth-smoke.mjs --manual-apps
+```
+
+For existing Keycloak volumes created before the smoke client was added, the script idempotently
+creates the local-only `questlog-smoke` client through the local admin account. The script cleans up
+only backend/BFF processes that it started; Docker Compose services remain managed by Compose.
+
 ## Verification
 
 ```powershell
@@ -97,6 +123,10 @@ cd C:/hermes/QuestLog/apps/quest-log-bff
 cd C:/hermes/QuestLog/apps/quest-log-fe
 npm test
 npm run build
+
+cd C:/hermes/QuestLog
+node --test scripts/auth-smoke.test.mjs
+node scripts/auth-smoke.mjs --manual-apps
 ```
 
 Backend integration tests use Testcontainers and require Docker.
