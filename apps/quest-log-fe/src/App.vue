@@ -16,6 +16,7 @@ import {
   deleteTaskRequest,
   deleteWeeklyQuestRequest,
   fetchDashboard,
+  recommendDailyTasksRequest,
   skipWeeklyQuestRequest,
   skipTaskRequest,
   taskUpdatePayload,
@@ -154,6 +155,12 @@ async function archiveGoal(goal: Goal) {
   await runAction(async () => { await archiveGoalRequest(goal); if (selectedGoalId.value === goal.id) selectedGoalId.value = null }, 'Goal archived.')
 }
 async function confirmArchiveGoal(goal: Goal) { await confirmAction(`Archive "${goal.title}"?`, () => archiveGoal(goal)) }
+function recommendationNotice(recommendedTasks: DailyTask[]) {
+  return recommendedTasks.length === 1
+    ? '1 recommended daily quest is ready.'
+    : `${recommendedTasks.length} recommended daily quests are ready.`
+}
+async function recommendDailyTasks(goal: Goal) { await runAction(async () => recommendDailyTasksRequest(goal.id, today), recommendationNotice) }
 
 function startTaskEdit(task: DailyTask) { editingTaskId.value = task.id; taskDraft.value = { title: task.title, description: task.description ?? '', goalId: task.goalId, xpReward: task.xpReward } }
 function cancelTaskEdit() { editingTaskId.value = null }
@@ -281,6 +288,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
               <div class="focus-job"><span>{{ currentJob.label }}</span><small>{{ currentJob.subtitle }}</small></div>
               <div class="panel-actions">
                 <button v-if="selectedGoal" class="text-button" type="button" @click="openGoalModal(selectedGoal)">Edit Goal</button>
+                <button v-if="selectedGoal" class="text-button" type="button" :disabled="actionPending" @click="recommendDailyTasks(selectedGoal)">Generate Quests</button>
                 <button v-if="selectedGoal" class="text-button muted" type="button" @click="confirmArchiveGoal(selectedGoal)">Archive</button>
               </div>
             </aside>

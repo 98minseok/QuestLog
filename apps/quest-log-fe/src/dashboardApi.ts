@@ -130,6 +130,15 @@ export async function createGoalRequest(input: GoalCreateInput) {
   return response.data
 }
 
+export async function recommendDailyTasksRequest(goalId: number, taskDate: string) {
+  const response = await axios.post<DailyTask[]>(
+    `/api/bff/goals/${goalId}/recommendations`,
+    undefined,
+    { params: { taskDate } },
+  )
+  return response.data
+}
+
 export async function archiveGoalRequest(goal: Goal) {
   await axios.put(`/api/bff/goals/${goal.id}`, {
     title: goal.title,

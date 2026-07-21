@@ -8,6 +8,7 @@ import {
   deleteTaskRequest,
   deleteWeeklyQuestRequest,
   fetchDashboard,
+  recommendDailyTasksRequest,
   skipTaskRequest,
   skipWeeklyQuestRequest,
   taskUpdatePayload,
@@ -104,6 +105,17 @@ describe('dashboard API lifecycle requests', () => {
       targetDate: goal.targetDate,
       taskDate: '2026-06-16',
     })
+  })
+
+  it('requests daily recommendations for an existing goal and task date', async () => {
+    mockedAxios.post.mockResolvedValue({ data: [task] })
+
+    await expect(recommendDailyTasksRequest(goal.id, '2026-06-16')).resolves.toEqual([task])
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      '/api/bff/goals/7/recommendations',
+      undefined,
+      { params: { taskDate: '2026-06-16' } },
+    )
   })
 
   it('skips a task while preserving the complete update payload', async () => {

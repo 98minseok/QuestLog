@@ -1,7 +1,13 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App.vue'
-import { archiveGoalRequest, completeWeeklyQuestRequest, fetchDashboard, type Dashboard } from './dashboardApi'
+import {
+  archiveGoalRequest,
+  completeWeeklyQuestRequest,
+  fetchDashboard,
+  recommendDailyTasksRequest,
+  type Dashboard,
+} from './dashboardApi'
 
 vi.mock('./dashboardApi', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./dashboardApi')>()
@@ -13,6 +19,7 @@ vi.mock('./dashboardApi', async (importOriginal) => {
     deleteWeeklyQuestRequest: vi.fn(),
     deleteTaskRequest: vi.fn(),
     fetchDashboard: vi.fn(),
+    recommendDailyTasksRequest: vi.fn(),
     skipWeeklyQuestRequest: vi.fn(),
     skipTaskRequest: vi.fn(),
   }
@@ -60,6 +67,7 @@ beforeEach(() => {
   vi.mocked(fetchDashboard).mockResolvedValue(dashboard)
   vi.mocked(archiveGoalRequest).mockResolvedValue()
   vi.mocked(completeWeeklyQuestRequest).mockResolvedValue(75)
+  vi.mocked(recommendDailyTasksRequest).mockResolvedValue([])
   vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
 
@@ -101,5 +109,31 @@ describe('App dashboard lifecycle', () => {
     expect(completeWeeklyQuestRequest).toHaveBeenCalledWith(17)
     expect(fetchDashboard).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('Weekly quest complete. +75 XP')
+  })
+
+  it('requests daily quest recommendations for the selected goal', async () => {
+    vi.mocked(recommendDailyTasksRequest).mockResolvedValue([
+      {
+        id: 31,
+        goalId: 7,
+        title: 'Plan the next step for Ship QuestLog',
+        description: 'Write one concrete outcome',
+        taskDate: '2026-06-15',
+        status: 'PENDING',
+        source: 'AI_RECOMMENDED',
+        xpReward: 10,
+      },
+    ])
+    const wrapper = mount(App)
+    await flushPromises()
+
+    const generateButton = wrapper.findAll('button').find((button) => button.text() === 'Generate Quests')
+    expect(generateButton).toBeDefined()
+    await generateButton!.trigger('click')
+    await flushPromises()
+
+    expect(recommendDailyTasksRequest).toHaveBeenCalledWith(7, expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/))
+    expect(fetchDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('1 recommended daily quest is ready.')
   })
 })
