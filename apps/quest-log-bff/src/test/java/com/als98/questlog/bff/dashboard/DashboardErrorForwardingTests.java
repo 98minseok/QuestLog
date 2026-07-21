@@ -120,6 +120,44 @@ class DashboardErrorForwardingTests {
     }
 
     @Test
+    void proxiesSelectedRecommendationDraftAcceptance() throws Exception {
+        backend.expect(once(), requestTo(
+                        "http://localhost:8081/api/be/goals/9/recommendations/accept"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess("""
+                        [{
+                          "id":21,
+                          "goalId":9,
+                          "title":"Rehearse the three-minute demo",
+                          "description":"Practice the edited pitch flow.",
+                          "taskDate":"2026-06-16",
+                          "status":"PENDING",
+                          "source":"AI_RECOMMENDED",
+                          "xpReward":35,
+                          "createdAt":"2026-06-16T09:00:00Z",
+                          "updatedAt":"2026-06-16T09:00:00Z"
+                        }]
+                        """, MediaType.APPLICATION_JSON));
+
+        mockMvc.perform(post("/api/bff/goals/9/recommendations/accept")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                [{
+                                  "title":"Rehearse the three-minute demo",
+                                  "description":"Practice the edited pitch flow.",
+                                  "taskDate":"2026-06-16",
+                                  "xpReward":35
+                                }]
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].goalId").value(9))
+                .andExpect(jsonPath("$[0].title").value("Rehearse the three-minute demo"))
+                .andExpect(jsonPath("$[0].source").value("AI_RECOMMENDED"));
+
+        backend.verify();
+    }
+
+    @Test
     void forwardsDirectCompletionUpdateRejectionFromBackend() throws Exception {
         assertForwardedError(
                 PUT,

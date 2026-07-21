@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
@@ -140,6 +141,18 @@ public class DashboardController {
                 .body(RECOMMENDATION_DRAFT_LIST);
     }
 
+    @PostMapping("/goals/{goalId}/recommendations/accept")
+    public List<DashboardResponse.DailyTask> acceptRecommendations(
+            @PathVariable long goalId,
+            @Valid @RequestBody @NotEmpty List<RecommendationDraftRequest> drafts
+    ) {
+        return backendRestClient.post()
+                .uri("/api/be/goals/{goalId}/recommendations/accept", goalId)
+                .body(drafts)
+                .retrieve()
+                .body(TASK_LIST);
+    }
+
     @PostMapping("/daily-tasks/{taskId}/complete")
     public DailyTaskCompletionResponse completeDailyTask(@PathVariable long taskId) {
         return backendRestClient.post()
@@ -175,6 +188,14 @@ public class DashboardController {
             String description,
             @NotNull LocalDate taskDate,
             String status,
+            @Min(1) @Max(1000) int xpReward
+    ) {
+    }
+
+    public record RecommendationDraftRequest(
+            @NotBlank @Size(max = 200) String title,
+            String description,
+            @NotNull LocalDate taskDate,
             @Min(1) @Max(1000) int xpReward
     ) {
     }

@@ -216,6 +216,42 @@ class QuestLogApiTests {
     }
 
     @Test
+    void acceptsSelectedEditedRecommendationDraftsAsAiRecommendedTasks() throws Exception {
+        long goalId = createGoal("Prepare demo day");
+
+        mockMvc.perform(post("/api/be/goals/{goalId}/recommendations/accept", goalId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                [
+                                  {
+                                    "title": "Rehearse the three-minute demo",
+                                    "description": "Practice the edited pitch flow.",
+                                    "taskDate": "2026-06-16",
+                                    "xpReward": 35
+                                  }
+                                ]
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].goalId").value(goalId))
+                .andExpect(jsonPath("$[0].title").value("Rehearse the three-minute demo"))
+                .andExpect(jsonPath("$[0].description").value("Practice the edited pitch flow."))
+                .andExpect(jsonPath("$[0].taskDate").value("2026-06-16"))
+                .andExpect(jsonPath("$[0].source").value("AI_RECOMMENDED"))
+                .andExpect(jsonPath("$[0].xpReward").value(35));
+
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT count(*) FROM daily_tasks
+                WHERE goal_id = ? AND source = 'AI_RECOMMENDED'
+                  AND title = 'Rehearse the three-minute demo'
+                """,
+                Integer.class,
+                goalId
+        )).isOne();
+    }
+
+    @Test
     void completionAwardsExperienceOnceAndCharacterReadReflectsIt() throws Exception {
         long goalId = createGoal("Build a consistent routine");
         long taskId = createTask(goalId, "Complete a focus block", 120);

@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  acceptDailyRecommendationsRequest,
   archiveGoalRequest,
   completeWeeklyQuestRequest,
   completeTaskRequest,
@@ -134,6 +135,31 @@ describe('dashboard API lifecycle requests', () => {
     expect(mockedAxios.get).toHaveBeenCalledWith(
       '/api/bff/goals/7/recommendations/preview',
       { params: { taskDate: '2026-06-16' } },
+    )
+  })
+
+  it('accepts edited recommendation drafts through the BFF accept endpoint', async () => {
+    const draft = {
+      goalId: goal.id,
+      title: 'Rehearse the three-minute demo',
+      description: 'Practice the edited pitch flow.',
+      taskDate: '2026-06-16',
+      xpReward: 35,
+      source: 'AI_RECOMMENDED' as const,
+    }
+    mockedAxios.post.mockResolvedValue({ data: [task] })
+
+    await expect(acceptDailyRecommendationsRequest(goal.id, [draft])).resolves.toEqual([task])
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      '/api/bff/goals/7/recommendations/accept',
+      [
+        {
+          title: 'Rehearse the three-minute demo',
+          description: 'Practice the edited pitch flow.',
+          taskDate: '2026-06-16',
+          xpReward: 35,
+        },
+      ],
     )
   })
 

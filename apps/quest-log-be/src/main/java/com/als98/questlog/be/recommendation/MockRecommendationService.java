@@ -43,6 +43,22 @@ public class MockRecommendationService {
                 .toList();
     }
 
+    @Transactional
+    public List<DailyTask> accept(long userId, long goalId, List<RecommendationDraft> drafts) {
+        goalService.find(userId, goalId);
+        return drafts.stream()
+                .map(draft -> dailyTaskService.create(
+                        userId,
+                        goalId,
+                        draft.title(),
+                        draft.description(),
+                        draft.taskDate(),
+                        draft.xpReward(),
+                        "AI_RECOMMENDED"
+                ))
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public List<RecommendationDraft> preview(long userId, long goalId, LocalDate taskDate) {
         Goal goal = goalService.find(userId, goalId);

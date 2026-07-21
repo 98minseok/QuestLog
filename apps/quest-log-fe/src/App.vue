@@ -9,6 +9,7 @@ import strategistImage from './assets/classes/strategist.png'
 import bossImage from './assets/questlog-forest-boss.png'
 import bossBattleImage from './assets/bosses/forest-guardian-battle.png'
 import {
+  acceptDailyRecommendationsRequest,
   archiveGoalRequest,
   completeWeeklyQuestRequest,
   completeTaskRequest,
@@ -17,7 +18,6 @@ import {
   deleteWeeklyQuestRequest,
   fetchDashboard,
   previewDailyRecommendationsRequest,
-  recommendDailyTasksRequest,
   skipWeeklyQuestRequest,
   skipTaskRequest,
   taskUpdatePayload,
@@ -42,6 +42,7 @@ type TabKey = (typeof TABS)[number]
 type QuestEntry =
   | { kind: 'daily'; key: string; task: DailyTask }
   | { kind: 'weekly'; key: string; quest: WeeklyQuest }
+type ReviewDraft = RecommendationDraft & { reviewId: number; selected: boolean }
 
 const characterImages = {
   scholar: scholarImage,
@@ -70,7 +71,7 @@ const editingGoalId = ref<number | null>(null)
 const goalDraft = ref({ title: '', description: '', targetDate: '' })
 const editingTaskId = ref<number | null>(null)
 const taskDraft = ref({ title: '', description: '', goalId: null as number | null, xpReward: 10 })
-const recommendationDrafts = ref<RecommendationDraft[]>([])
+const recommendationDrafts = ref<ReviewDraft[]>([])
 const recommendationGoalId = ref<number | null>(null)
 const editingWeeklyQuestId = ref<number | null>(null)
 const weeklyQuestDraft = ref({ title: '', description: '', goalId: null as number | null, xpReward: 40 })
@@ -106,6 +107,13 @@ const pendingQuestCount = computed(() => selectedGoalDailyTasks.value.filter((ta
 const authEnabled = computed(() => authState.mode === 'keycloak')
 const authLabel = computed(() => authState.authenticated ? authState.username || 'Authenticated user' : 'Signed out')
 const hasRecommendationDrafts = computed(() => recommendationGoalId.value === selectedGoal.value?.id && recommendationDrafts.value.length > 0)
+const selectedRecommendationDrafts = computed(() => recommendationDrafts.value.filter((draft) => draft.selected))
+const canAcceptRecommendationDrafts = computed(() => selectedRecommendationDrafts.value.length > 0 && selectedRecommendationDrafts.value.every((draft) => (
+  draft.title.trim()
+  && Number.isInteger(draft.xpReward)
+  && draft.xpReward >= 1
+  && draft.xpReward <= 1000
+)))
 
 function apiMessage(caught: unknown) {
   if (axios.isAxiosError(caught)) return caught.response?.data?.message ?? 'The QuestLog backend is unavailable.'
@@ -165,22 +173,33 @@ function recommendationNotice(recommendedTasks: DailyTask[]) {
     ? '1 recommended daily quest is ready.'
     : `${recommendedTasks.length} recommended daily quests are ready.`
 }
+function reviewDrafts(drafts: RecommendationDraft[]) {
+  return drafts.map((draft, index) => ({ ...draft, reviewId: index + 1, selected: true }))
+}
 async function previewDailyRecommendations(goal: Goal) {
   await runAction(async () => {
     const drafts = await previewDailyRecommendationsRequest(goal.id, today)
     recommendationGoalId.value = goal.id
-    recommendationDrafts.value = drafts
+    recommendationDrafts.value = reviewDrafts(drafts)
     return drafts
   }, (drafts) => drafts.length === 1 ? 'Review 1 recommended quest before accepting it.' : `Review ${drafts.length} recommended quests before accepting them.`)
 }
 async function acceptDailyRecommendations() {
-  if (!selectedGoal.value) return
+  if (!selectedGoal.value || !canAcceptRecommendationDrafts.value) return
   await runAction(async () => {
-    const recommendedTasks = await recommendDailyTasksRequest(selectedGoal.value!.id, today)
+    const selectedDrafts = selectedRecommendationDrafts.value.map(({ reviewId, selected, ...draft }) => draft)
+    const recommendedTasks = await acceptDailyRecommendationsRequest(selectedGoal.value!.id, selectedDrafts)
     recommendationDrafts.value = []
     recommendationGoalId.value = null
     return recommendedTasks
   }, recommendationNotice)
+}
+function dismissRecommendationDraft(reviewId: number) {
+  recommendationDrafts.value = recommendationDrafts.value.filter((draft) => draft.reviewId !== reviewId)
+  if (recommendationDrafts.value.length === 0) {
+    recommendationGoalId.value = null
+    notice.value = 'Recommended quests dismissed.'
+  }
 }
 function dismissDailyRecommendations() {
   recommendationDrafts.value = []
@@ -332,13 +351,21 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
                   <div class="review-heading">
                     <div><p class="eyebrow">RECOMMENDATION REVIEW</p><h3>Preview daily quests before creation</h3></div>
                     <div class="review-actions">
-                      <button class="text-button" type="button" :disabled="actionPending" @click="acceptDailyRecommendations">Accept all</button>
+                      <button class="text-button" type="button" :disabled="actionPending || !canAcceptRecommendationDrafts" @click="acceptDailyRecommendations">Accept selected</button>
                       <button class="text-button muted" type="button" :disabled="actionPending" @click="dismissDailyRecommendations">Dismiss</button>
                     </div>
                   </div>
-                  <div v-for="draft in recommendationDrafts" :key="`${draft.title}-${draft.xpReward}`" class="draft-card">
-                    <div class="quest-copy"><strong>{{ draft.title }}</strong><span>SYSTEM DAILY DRAFT</span><p>{{ draft.description }}</p></div>
-                    <b>+{{ draft.xpReward }} XP</b>
+                  <div v-for="draft in recommendationDrafts" :key="draft.reviewId" class="draft-card">
+                    <label class="draft-select">
+                      <input v-model="draft.selected" type="checkbox" :aria-label="`Select ${draft.title}`" />
+                      <span>SYSTEM DAILY DRAFT</span>
+                    </label>
+                    <div class="draft-fields">
+                      <input v-model="draft.title" maxlength="200" aria-label="Recommendation title" />
+                      <input v-model="draft.description" aria-label="Recommendation description" />
+                    </div>
+                    <input v-model.number="draft.xpReward" class="draft-xp-input" type="number" min="1" max="1000" aria-label="Recommendation XP reward" />
+                    <button class="text-button muted" type="button" :disabled="actionPending" @click="dismissRecommendationDraft(draft.reviewId)">Reject</button>
                   </div>
                 </div>
                 <div v-for="entry in questEntries" :key="entry.key" class="quest-card" :class="entry.kind">

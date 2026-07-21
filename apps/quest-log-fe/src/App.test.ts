@@ -2,11 +2,11 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App.vue'
 import {
+  acceptDailyRecommendationsRequest,
   archiveGoalRequest,
   completeWeeklyQuestRequest,
   fetchDashboard,
   previewDailyRecommendationsRequest,
-  recommendDailyTasksRequest,
   type Dashboard,
 } from './dashboardApi'
 
@@ -20,8 +20,8 @@ vi.mock('./dashboardApi', async (importOriginal) => {
     deleteWeeklyQuestRequest: vi.fn(),
     deleteTaskRequest: vi.fn(),
     fetchDashboard: vi.fn(),
+    acceptDailyRecommendationsRequest: vi.fn(),
     previewDailyRecommendationsRequest: vi.fn(),
-    recommendDailyTasksRequest: vi.fn(),
     skipWeeklyQuestRequest: vi.fn(),
     skipTaskRequest: vi.fn(),
   }
@@ -69,8 +69,8 @@ beforeEach(() => {
   vi.mocked(fetchDashboard).mockResolvedValue(dashboard)
   vi.mocked(archiveGoalRequest).mockResolvedValue()
   vi.mocked(completeWeeklyQuestRequest).mockResolvedValue(75)
+  vi.mocked(acceptDailyRecommendationsRequest).mockResolvedValue([])
   vi.mocked(previewDailyRecommendationsRequest).mockResolvedValue([])
-  vi.mocked(recommendDailyTasksRequest).mockResolvedValue([])
   vi.spyOn(window, 'confirm').mockReturnValue(true)
 })
 
@@ -114,7 +114,7 @@ describe('App dashboard lifecycle', () => {
     expect(wrapper.text()).toContain('Weekly quest complete. +75 XP')
   })
 
-  it('previews and accepts daily quest recommendations for the selected goal', async () => {
+  it('previews, edits, rejects, and accepts selected daily quest recommendations', async () => {
     vi.mocked(previewDailyRecommendationsRequest).mockResolvedValue([
       {
         goalId: 7,
@@ -124,17 +124,25 @@ describe('App dashboard lifecycle', () => {
         source: 'AI_RECOMMENDED',
         xpReward: 10,
       },
+      {
+        goalId: 7,
+        title: 'Focus on Ship QuestLog for 25 minutes',
+        description: 'Complete one uninterrupted focus session',
+        taskDate: '2026-06-15',
+        source: 'AI_RECOMMENDED',
+        xpReward: 20,
+      },
     ])
-    vi.mocked(recommendDailyTasksRequest).mockResolvedValue([
+    vi.mocked(acceptDailyRecommendationsRequest).mockResolvedValue([
       {
         id: 31,
         goalId: 7,
-        title: 'Plan the next step for Ship QuestLog',
-        description: 'Write one concrete outcome',
+        title: 'Rehearse the QuestLog launch demo',
+        description: 'Practice the edited pitch flow',
         taskDate: '2026-06-15',
         status: 'PENDING',
         source: 'AI_RECOMMENDED',
-        xpReward: 10,
+        xpReward: 35,
       },
     ])
     const wrapper = mount(App)
@@ -146,14 +154,34 @@ describe('App dashboard lifecycle', () => {
     await flushPromises()
 
     expect(previewDailyRecommendationsRequest).toHaveBeenCalledWith(7, expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/))
-    expect(recommendDailyTasksRequest).not.toHaveBeenCalled()
+    expect(acceptDailyRecommendationsRequest).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('SYSTEM DAILY DRAFT')
-    const acceptButton = wrapper.findAll('button').find((button) => button.text() === 'Accept all')
+
+    const recommendationTitles = wrapper.findAll('input[aria-label="Recommendation title"]')
+    await recommendationTitles[0].setValue('Rehearse the QuestLog launch demo')
+    const recommendationDescriptions = wrapper.findAll('input[aria-label="Recommendation description"]')
+    await recommendationDescriptions[0].setValue('Practice the edited pitch flow')
+    const recommendationXp = wrapper.findAll('input[aria-label="Recommendation XP reward"]')
+    await recommendationXp[0].setValue(35)
+    const rejectButtons = wrapper.findAll('button').filter((button) => button.text() === 'Reject')
+    expect(rejectButtons).toHaveLength(2)
+    await rejectButtons[1].trigger('click')
+
+    const acceptButton = wrapper.findAll('button').find((button) => button.text() === 'Accept selected')
     expect(acceptButton).toBeDefined()
     await acceptButton!.trigger('click')
     await flushPromises()
 
-    expect(recommendDailyTasksRequest).toHaveBeenCalledWith(7, expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/))
+    expect(acceptDailyRecommendationsRequest).toHaveBeenCalledWith(7, [
+      {
+        goalId: 7,
+        title: 'Rehearse the QuestLog launch demo',
+        description: 'Practice the edited pitch flow',
+        taskDate: '2026-06-15',
+        source: 'AI_RECOMMENDED',
+        xpReward: 35,
+      },
+    ])
     expect(fetchDashboard).toHaveBeenCalledTimes(3)
     expect(wrapper.text()).toContain('1 recommended daily quest is ready.')
   })

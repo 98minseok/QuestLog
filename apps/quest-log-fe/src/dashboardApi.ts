@@ -156,6 +156,19 @@ export async function previewDailyRecommendationsRequest(goalId: number, taskDat
   return response.data
 }
 
+export async function acceptDailyRecommendationsRequest(goalId: number, drafts: RecommendationDraft[]) {
+  const response = await axios.post<DailyTask[]>(
+    `/api/bff/goals/${goalId}/recommendations/accept`,
+    drafts.map((draft) => ({
+      title: draft.title,
+      description: draft.description,
+      taskDate: draft.taskDate,
+      xpReward: draft.xpReward,
+    })),
+  )
+  return response.data
+}
+
 export async function archiveGoalRequest(goal: Goal) {
   await axios.put(`/api/bff/goals/${goal.id}`, {
     title: goal.title,
