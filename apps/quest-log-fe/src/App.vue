@@ -16,6 +16,7 @@ import {
   deleteTaskRequest,
   deleteWeeklyQuestRequest,
   fetchDashboard,
+  previewDailyRecommendationsRequest,
   recommendDailyTasksRequest,
   skipWeeklyQuestRequest,
   skipTaskRequest,
@@ -26,6 +27,7 @@ import {
   type DailyTask,
   type Goal,
   type RaidAttempt,
+  type RecommendationDraft,
   type WeeklyQuest,
 } from './dashboardApi'
 import { deriveCharacterJob } from './questPersona'
@@ -68,6 +70,8 @@ const editingGoalId = ref<number | null>(null)
 const goalDraft = ref({ title: '', description: '', targetDate: '' })
 const editingTaskId = ref<number | null>(null)
 const taskDraft = ref({ title: '', description: '', goalId: null as number | null, xpReward: 10 })
+const recommendationDrafts = ref<RecommendationDraft[]>([])
+const recommendationGoalId = ref<number | null>(null)
 const editingWeeklyQuestId = ref<number | null>(null)
 const weeklyQuestDraft = ref({ title: '', description: '', goalId: null as number | null, xpReward: 40 })
 
@@ -101,6 +105,7 @@ const clearedRaidCount = computed(() => clearedRaidIds.value.size)
 const pendingQuestCount = computed(() => selectedGoalDailyTasks.value.filter((task) => task.status === TASK_STATUS.pending).length + weeklyQuests.value.filter((quest) => quest.status === TASK_STATUS.pending).length)
 const authEnabled = computed(() => authState.mode === 'keycloak')
 const authLabel = computed(() => authState.authenticated ? authState.username || 'Authenticated user' : 'Signed out')
+const hasRecommendationDrafts = computed(() => recommendationGoalId.value === selectedGoal.value?.id && recommendationDrafts.value.length > 0)
 
 function apiMessage(caught: unknown) {
   if (axios.isAxiosError(caught)) return caught.response?.data?.message ?? 'The QuestLog backend is unavailable.'
@@ -160,7 +165,28 @@ function recommendationNotice(recommendedTasks: DailyTask[]) {
     ? '1 recommended daily quest is ready.'
     : `${recommendedTasks.length} recommended daily quests are ready.`
 }
-async function recommendDailyTasks(goal: Goal) { await runAction(async () => recommendDailyTasksRequest(goal.id, today), recommendationNotice) }
+async function previewDailyRecommendations(goal: Goal) {
+  await runAction(async () => {
+    const drafts = await previewDailyRecommendationsRequest(goal.id, today)
+    recommendationGoalId.value = goal.id
+    recommendationDrafts.value = drafts
+    return drafts
+  }, (drafts) => drafts.length === 1 ? 'Review 1 recommended quest before accepting it.' : `Review ${drafts.length} recommended quests before accepting them.`)
+}
+async function acceptDailyRecommendations() {
+  if (!selectedGoal.value) return
+  await runAction(async () => {
+    const recommendedTasks = await recommendDailyTasksRequest(selectedGoal.value!.id, today)
+    recommendationDrafts.value = []
+    recommendationGoalId.value = null
+    return recommendedTasks
+  }, recommendationNotice)
+}
+function dismissDailyRecommendations() {
+  recommendationDrafts.value = []
+  recommendationGoalId.value = null
+  notice.value = 'Recommended quests dismissed.'
+}
 
 function startTaskEdit(task: DailyTask) { editingTaskId.value = task.id; taskDraft.value = { title: task.title, description: task.description ?? '', goalId: task.goalId, xpReward: task.xpReward } }
 function cancelTaskEdit() { editingTaskId.value = null }
@@ -288,7 +314,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
               <div class="focus-job"><span>{{ currentJob.label }}</span><small>{{ currentJob.subtitle }}</small></div>
               <div class="panel-actions">
                 <button v-if="selectedGoal" class="text-button" type="button" @click="openGoalModal(selectedGoal)">Edit Goal</button>
-                <button v-if="selectedGoal" class="text-button" type="button" :disabled="actionPending" @click="recommendDailyTasks(selectedGoal)">Generate Quests</button>
+                <button v-if="selectedGoal" class="text-button" type="button" :disabled="actionPending" @click="previewDailyRecommendations(selectedGoal)">Generate Quests</button>
                 <button v-if="selectedGoal" class="text-button muted" type="button" @click="confirmArchiveGoal(selectedGoal)">Archive</button>
               </div>
             </aside>
@@ -302,6 +328,19 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
               </div>
 
               <div class="quest-list">
+                <div v-if="hasRecommendationDrafts" class="recommendation-review">
+                  <div class="review-heading">
+                    <div><p class="eyebrow">RECOMMENDATION REVIEW</p><h3>Preview daily quests before creation</h3></div>
+                    <div class="review-actions">
+                      <button class="text-button" type="button" :disabled="actionPending" @click="acceptDailyRecommendations">Accept all</button>
+                      <button class="text-button muted" type="button" :disabled="actionPending" @click="dismissDailyRecommendations">Dismiss</button>
+                    </div>
+                  </div>
+                  <div v-for="draft in recommendationDrafts" :key="`${draft.title}-${draft.xpReward}`" class="draft-card">
+                    <div class="quest-copy"><strong>{{ draft.title }}</strong><span>SYSTEM DAILY DRAFT</span><p>{{ draft.description }}</p></div>
+                    <b>+{{ draft.xpReward }} XP</b>
+                  </div>
+                </div>
                 <div v-for="entry in questEntries" :key="entry.key" class="quest-card" :class="entry.kind">
                   <template v-if="entry.kind === 'daily'">
                     <form v-if="editingTaskId === entry.task.id" class="edit-form task-edit-form" @submit.prevent="saveTask(entry.task)">

@@ -1,13 +1,16 @@
 package com.als98.questlog.bff.dashboard;
 
 import static org.springframework.http.HttpMethod.DELETE;
+import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 import static org.springframework.http.HttpMethod.PUT;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -88,6 +91,32 @@ class DashboardErrorForwardingTests {
                 dailyTaskUpdateRequest("Reactivate skipped task", "PENDING"),
                 "Skipped daily tasks cannot be edited"
         );
+    }
+
+    @Test
+    void proxiesRecommendationPreviewWithoutCreatingTasks() throws Exception {
+        backend.expect(once(), requestTo(
+                        "http://localhost:8081/api/be/goals/9/recommendations/preview?taskDate=2026-06-16"))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("""
+                        [{
+                          "goalId":9,
+                          "title":"Plan the next step for Study Korean",
+                          "description":"Write one concrete outcome.",
+                          "taskDate":"2026-06-16",
+                          "xpReward":10,
+                          "source":"AI_RECOMMENDED"
+                        }]
+                        """, MediaType.APPLICATION_JSON));
+
+        mockMvc.perform(get("/api/bff/goals/9/recommendations/preview")
+                        .param("taskDate", "2026-06-16"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].goalId").value(9))
+                .andExpect(jsonPath("$[0].title").value("Plan the next step for Study Korean"))
+                .andExpect(jsonPath("$[0].source").value("AI_RECOMMENDED"));
+
+        backend.verify();
     }
 
     @Test

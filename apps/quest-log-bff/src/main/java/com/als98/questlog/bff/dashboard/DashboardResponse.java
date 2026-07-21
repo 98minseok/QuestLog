@@ -39,6 +39,16 @@ public record DashboardResponse(
     ) {
     }
 
+    public record RecommendationDraft(
+            Long goalId,
+            String title,
+            String description,
+            LocalDate taskDate,
+            int xpReward,
+            String source
+    ) {
+    }
+
     public record WeeklyQuest(
             long id,
             Long goalId,

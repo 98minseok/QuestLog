@@ -30,6 +30,9 @@ public class DashboardController {
     private static final ParameterizedTypeReference<List<DashboardResponse.DailyTask>> TASK_LIST =
             new ParameterizedTypeReference<>() {
             };
+    private static final ParameterizedTypeReference<List<DashboardResponse.RecommendationDraft>> RECOMMENDATION_DRAFT_LIST =
+            new ParameterizedTypeReference<>() {
+            };
 
     private final DashboardService dashboardService;
     private final RestClient backendRestClient;
@@ -120,6 +123,21 @@ public class DashboardController {
                         .build(goalId))
                 .retrieve()
                 .body(TASK_LIST);
+    }
+
+    @GetMapping("/goals/{goalId}/recommendations/preview")
+    public List<DashboardResponse.RecommendationDraft> previewRecommendations(
+            @PathVariable long goalId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate taskDate
+    ) {
+        return backendRestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/be/goals/{goalId}/recommendations/preview")
+                        .queryParamIfPresent("taskDate", java.util.Optional.ofNullable(taskDate))
+                        .build(goalId))
+                .retrieve()
+                .body(RECOMMENDATION_DRAFT_LIST);
     }
 
     @PostMapping("/daily-tasks/{taskId}/complete")

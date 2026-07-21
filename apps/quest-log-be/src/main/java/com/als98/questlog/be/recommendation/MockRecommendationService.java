@@ -30,10 +30,25 @@ public class MockRecommendationService {
             return existing;
         }
 
+        return preview(userId, goalId, taskDate).stream()
+                .map(draft -> dailyTaskService.create(
+                        userId,
+                        draft.goalId(),
+                        draft.title(),
+                        draft.description(),
+                        draft.taskDate(),
+                        draft.xpReward(),
+                        draft.source()
+                ))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RecommendationDraft> preview(long userId, long goalId, LocalDate taskDate) {
+        Goal goal = goalService.find(userId, goalId);
         String goalTitle = goal.title();
         return List.of(
-                dailyTaskService.create(
-                        userId,
+                new RecommendationDraft(
                         goalId,
                         "Plan the next step for " + goalTitle,
                         "Write one concrete outcome and the smallest action that advances it.",
@@ -41,8 +56,7 @@ public class MockRecommendationService {
                         10,
                         "AI_RECOMMENDED"
                 ),
-                dailyTaskService.create(
-                        userId,
+                new RecommendationDraft(
                         goalId,
                         "Focus on " + goalTitle + " for 25 minutes",
                         "Complete one uninterrupted focus session.",
@@ -50,8 +64,7 @@ public class MockRecommendationService {
                         20,
                         "AI_RECOMMENDED"
                 ),
-                dailyTaskService.create(
-                        userId,
+                new RecommendationDraft(
                         goalId,
                         "Review progress on " + goalTitle,
                         "Record what moved forward and choose tomorrow's first action.",

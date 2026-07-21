@@ -22,6 +22,15 @@ export type DailyTask = {
   xpReward: number
 }
 
+export type RecommendationDraft = {
+  goalId: number | null
+  title: string
+  description: string | null
+  taskDate: string
+  xpReward: number
+  source: TaskSource
+}
+
 export type WeeklyQuest = {
   id: number
   goalId: number | null
@@ -134,6 +143,14 @@ export async function recommendDailyTasksRequest(goalId: number, taskDate: strin
   const response = await axios.post<DailyTask[]>(
     `/api/bff/goals/${goalId}/recommendations`,
     undefined,
+    { params: { taskDate } },
+  )
+  return response.data
+}
+
+export async function previewDailyRecommendationsRequest(goalId: number, taskDate: string) {
+  const response = await axios.get<RecommendationDraft[]>(
+    `/api/bff/goals/${goalId}/recommendations/preview`,
     { params: { taskDate } },
   )
   return response.data

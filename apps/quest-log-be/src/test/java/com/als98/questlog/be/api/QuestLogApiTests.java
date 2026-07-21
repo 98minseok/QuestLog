@@ -178,6 +178,19 @@ class QuestLogApiTests {
     void recommendationsAreDeterministicAndReuseExistingTasks() throws Exception {
         long goalId = createGoal("Run a half marathon");
 
+        mockMvc.perform(get("/api/be/goals/{goalId}/recommendations/preview", goalId)
+                        .param("taskDate", "2026-06-14"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].goalId").value(goalId))
+                .andExpect(jsonPath("$[0].source").value("AI_RECOMMENDED"))
+                .andExpect(jsonPath("$[0].title").value("Plan the next step for Run a half marathon"));
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM daily_tasks WHERE goal_id = ?",
+                Integer.class,
+                goalId
+        )).isZero();
+
         MvcResult first = mockMvc.perform(post("/api/be/goals/{goalId}/recommendations", goalId)
                         .param("taskDate", "2026-06-14"))
                 .andExpect(status().isOk())

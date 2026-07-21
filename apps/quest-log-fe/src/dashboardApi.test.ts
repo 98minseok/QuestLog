@@ -8,6 +8,7 @@ import {
   deleteTaskRequest,
   deleteWeeklyQuestRequest,
   fetchDashboard,
+  previewDailyRecommendationsRequest,
   recommendDailyTasksRequest,
   skipTaskRequest,
   skipWeeklyQuestRequest,
@@ -114,6 +115,24 @@ describe('dashboard API lifecycle requests', () => {
     expect(mockedAxios.post).toHaveBeenCalledWith(
       '/api/bff/goals/7/recommendations',
       undefined,
+      { params: { taskDate: '2026-06-16' } },
+    )
+  })
+
+  it('previews daily recommendation drafts without creating tasks', async () => {
+    const draft = {
+      goalId: goal.id,
+      title: 'Plan the next step for Ship QuestLog',
+      description: 'Write one concrete outcome.',
+      taskDate: '2026-06-16',
+      xpReward: 10,
+      source: 'AI_RECOMMENDED' as const,
+    }
+    mockedAxios.get.mockResolvedValue({ data: [draft] })
+
+    await expect(previewDailyRecommendationsRequest(goal.id, '2026-06-16')).resolves.toEqual([draft])
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      '/api/bff/goals/7/recommendations/preview',
       { params: { taskDate: '2026-06-16' } },
     )
   })

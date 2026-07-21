@@ -5,6 +5,7 @@ import com.als98.questlog.be.user.CurrentUserService;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,6 +33,18 @@ public class RecommendationController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate taskDate
     ) {
         return recommendationService.recommend(
+                currentUserService.currentUserId(),
+                goalId,
+                taskDate == null ? LocalDate.now() : taskDate
+        );
+    }
+
+    @GetMapping("/preview")
+    public List<RecommendationDraft> preview(
+            @PathVariable long goalId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate taskDate
+    ) {
+        return recommendationService.preview(
                 currentUserService.currentUserId(),
                 goalId,
                 taskDate == null ? LocalDate.now() : taskDate
