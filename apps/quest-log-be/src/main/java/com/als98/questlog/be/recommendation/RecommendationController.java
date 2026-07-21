@@ -25,11 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class RecommendationController {
 
     private final CurrentUserService currentUserService;
-    private final MockRecommendationService recommendationService;
+    private final RecommendationService recommendationService;
 
     public RecommendationController(
             CurrentUserService currentUserService,
-            MockRecommendationService recommendationService
+            RecommendationService recommendationService
     ) {
         this.currentUserService = currentUserService;
         this.recommendationService = recommendationService;
