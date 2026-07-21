@@ -6,11 +6,15 @@ import {
   completeTaskRequest,
   createGoalRequest,
   deleteTaskRequest,
+  deleteWeeklyQuestRequest,
   fetchDashboard,
   skipTaskRequest,
+  skipWeeklyQuestRequest,
   taskUpdatePayload,
   type DailyTask,
   type Goal,
+  type WeeklyQuest,
+  weeklyQuestUpdatePayload,
 } from './dashboardApi'
 
 vi.mock('axios', () => ({
@@ -41,6 +45,17 @@ const task: DailyTask = {
   status: 'PENDING',
   source: 'MANUAL',
   xpReward: 25,
+}
+
+const weeklyQuest: WeeklyQuest = {
+  id: 17,
+  goalId: 7,
+  title: 'Review shipping progress',
+  description: 'Summarize blockers and next moves',
+  weekStartDate: '2026-06-15',
+  status: 'PENDING',
+  source: 'SYSTEM',
+  xpReward: 75,
 }
 
 beforeEach(() => {
@@ -127,6 +142,29 @@ describe('dashboard API lifecycle requests', () => {
     await expect(completeWeeklyQuestRequest(17)).resolves.toBe(75)
     expect(mockedAxios.post).toHaveBeenCalledWith('/api/bff/weekly-quests/17/complete')
   })
+
+  it('skips a weekly quest while preserving the complete update payload', async () => {
+    mockedAxios.put.mockResolvedValue({})
+
+    await skipWeeklyQuestRequest(weeklyQuest)
+
+    expect(mockedAxios.put).toHaveBeenCalledWith('/api/bff/weekly-quests/17', {
+      goalId: weeklyQuest.goalId,
+      title: weeklyQuest.title,
+      description: weeklyQuest.description,
+      weekStartDate: weeklyQuest.weekStartDate,
+      status: 'SKIPPED',
+      xpReward: weeklyQuest.xpReward,
+    })
+  })
+
+  it('deletes only the requested weekly quest resource', async () => {
+    mockedAxios.delete.mockResolvedValue({})
+
+    await deleteWeeklyQuestRequest(weeklyQuest.id)
+
+    expect(mockedAxios.delete).toHaveBeenCalledWith('/api/bff/weekly-quests/17')
+  })
 })
 
 describe('taskUpdatePayload', () => {
@@ -138,6 +176,19 @@ describe('taskUpdatePayload', () => {
       taskDate: task.taskDate,
       status: 'PENDING',
       xpReward: task.xpReward,
+    })
+  })
+})
+
+describe('weeklyQuestUpdatePayload', () => {
+  it('preserves weekly quest lifecycle state unless an update explicitly replaces it', () => {
+    expect(weeklyQuestUpdatePayload(weeklyQuest, { title: 'Renamed weekly quest' })).toEqual({
+      goalId: weeklyQuest.goalId,
+      title: 'Renamed weekly quest',
+      description: weeklyQuest.description,
+      weekStartDate: weeklyQuest.weekStartDate,
+      status: 'PENDING',
+      xpReward: weeklyQuest.xpReward,
     })
   })
 })

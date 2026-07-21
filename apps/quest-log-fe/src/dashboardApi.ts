@@ -96,6 +96,23 @@ export function taskUpdatePayload(
   }
 }
 
+export function weeklyQuestUpdatePayload(
+  weeklyQuest: WeeklyQuest,
+  updates: Partial<
+    Pick<WeeklyQuest, 'goalId' | 'title' | 'description' | 'status' | 'xpReward'>
+  >,
+) {
+  return {
+    goalId: weeklyQuest.goalId,
+    title: weeklyQuest.title,
+    description: weeklyQuest.description,
+    weekStartDate: weeklyQuest.weekStartDate,
+    status: weeklyQuest.status,
+    xpReward: weeklyQuest.xpReward,
+    ...updates,
+  }
+}
+
 export async function fetchDashboard(taskDate: string) {
   const response = await axios.get<Dashboard>('/api/bff/dashboard', {
     params: { taskDate },
@@ -145,4 +162,15 @@ export async function completeWeeklyQuestRequest(weeklyQuestId: number) {
     `/api/bff/weekly-quests/${weeklyQuestId}/complete`,
   )
   return response.data.xpAwarded
+}
+
+export async function skipWeeklyQuestRequest(weeklyQuest: WeeklyQuest) {
+  await axios.put(
+    `/api/bff/weekly-quests/${weeklyQuest.id}`,
+    weeklyQuestUpdatePayload(weeklyQuest, { status: 'SKIPPED' }),
+  )
+}
+
+export async function deleteWeeklyQuestRequest(weeklyQuestId: number) {
+  await axios.delete(`/api/bff/weekly-quests/${weeklyQuestId}`)
 }

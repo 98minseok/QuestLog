@@ -8,15 +8,6 @@ export type CharacterJob = {
   subtitle: string
 }
 
-export type WeeklyQuest = {
-  id: string
-  goalId: number
-  title: string
-  description: string
-  xpReward: number
-  cadence: 'WEEKLY'
-}
-
 const JOBS: Record<CharacterJobKey, CharacterJob> = {
   scholar: {
     key: 'scholar',
@@ -74,27 +65,4 @@ export function deriveCharacterJob(goal: Pick<Goal, 'title' | 'description'> | n
     ),
   )
   return JOBS[match?.key ?? 'pathfinder']
-}
-
-export function buildWeeklyQuests(goal: Pick<Goal, 'id' | 'title'> | null | undefined): WeeklyQuest[] {
-  if (!goal) return []
-
-  return [
-    {
-      id: `weekly-${goal.id}-checkpoint`,
-      goalId: goal.id,
-      title: `[WEEKLY] Set a milestone for ${goal.title}`,
-      description: 'Choose one measurable result to finish before the week ends.',
-      xpReward: 40,
-      cadence: 'WEEKLY',
-    },
-    {
-      id: `weekly-${goal.id}-review`,
-      goalId: goal.id,
-      title: `[WEEKLY] Review progress on ${goal.title}`,
-      description: 'Summarize wins, blockers, and the next weekly adjustment.',
-      xpReward: 30,
-      cadence: 'WEEKLY',
-    },
-  ]
 }

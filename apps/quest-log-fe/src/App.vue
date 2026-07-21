@@ -10,19 +10,24 @@ import bossImage from './assets/questlog-forest-boss.png'
 import bossBattleImage from './assets/bosses/forest-guardian-battle.png'
 import {
   archiveGoalRequest,
+  completeWeeklyQuestRequest,
   completeTaskRequest,
   createGoalRequest,
   deleteTaskRequest,
+  deleteWeeklyQuestRequest,
   fetchDashboard,
+  skipWeeklyQuestRequest,
   skipTaskRequest,
   taskUpdatePayload,
+  weeklyQuestUpdatePayload,
   type BossRaid,
   type CharacterProfile,
   type DailyTask,
   type Goal,
   type RaidAttempt,
+  type WeeklyQuest,
 } from './dashboardApi'
-import { buildWeeklyQuests, deriveCharacterJob, type WeeklyQuest } from './questPersona'
+import { deriveCharacterJob } from './questPersona'
 
 const GOAL_STATUS = { active: 'ACTIVE' } as const
 const TASK_STATUS = { completed: 'COMPLETED', pending: 'PENDING', skipped: 'SKIPPED' } as const
@@ -50,6 +55,7 @@ const error = ref('')
 const notice = ref('')
 const goals = ref<Goal[]>([])
 const tasks = ref<DailyTask[]>([])
+const persistedWeeklyQuests = ref<WeeklyQuest[]>([])
 const character = ref<CharacterProfile | null>(null)
 const raids = ref<BossRaid[]>([])
 const attempts = ref<RaidAttempt[]>([])
@@ -61,22 +67,25 @@ const editingGoalId = ref<number | null>(null)
 const goalDraft = ref({ title: '', description: '', targetDate: '' })
 const editingTaskId = ref<number | null>(null)
 const taskDraft = ref({ title: '', description: '', goalId: null as number | null, xpReward: 10 })
+const editingWeeklyQuestId = ref<number | null>(null)
+const weeklyQuestDraft = ref({ title: '', description: '', goalId: null as number | null, xpReward: 40 })
 
 const activeGoals = computed(() => goals.value.filter((goal) => goal.status === GOAL_STATUS.active))
 const selectedGoal = computed(() => activeGoals.value.find((goal) => goal.id === selectedGoalId.value) ?? activeGoals.value[0] ?? null)
 const taskGoalOptions = computed(() => goals.value.filter((goal) => goal.status === GOAL_STATUS.active || goal.id === taskDraft.value.goalId))
+const weeklyQuestGoalOptions = computed(() => goals.value.filter((goal) => goal.status === GOAL_STATUS.active || goal.id === weeklyQuestDraft.value.goalId))
 const selectedGoalDailyTasks = computed(() => selectedGoal.value ? tasks.value.filter((task) => task.goalId === selectedGoal.value?.id) : tasks.value)
-const weeklyQuests = computed(() => buildWeeklyQuests(selectedGoal.value))
+const weeklyQuests = computed(() => selectedGoal.value ? persistedWeeklyQuests.value.filter((quest) => quest.goalId === selectedGoal.value?.id) : persistedWeeklyQuests.value)
 const filteredDailyTasks = computed(() => taskFilter.value === 'ALL' ? selectedGoalDailyTasks.value : selectedGoalDailyTasks.value.filter((task) => task.status === taskFilter.value))
+const filteredWeeklyQuests = computed(() => taskFilter.value === 'ALL' ? weeklyQuests.value : weeklyQuests.value.filter((quest) => quest.status === taskFilter.value))
 const questEntries = computed<QuestEntry[]>(() => [
   ...filteredDailyTasks.value.map((task) => ({ kind: 'daily' as const, key: `daily-${task.id}`, task })),
-  ...(taskFilter.value === 'ALL' || taskFilter.value === 'PENDING'
-    ? weeklyQuests.value.map((quest) => ({ kind: 'weekly' as const, key: quest.id, quest }))
-    : []),
+  ...filteredWeeklyQuests.value.map((quest) => ({ kind: 'weekly' as const, key: `weekly-${quest.id}`, quest })),
 ])
 const taskFilterCounts = computed<Record<TaskFilter, number>>(() => {
-  const counts: Record<TaskFilter, number> = { ALL: selectedGoalDailyTasks.value.length + weeklyQuests.value.length, PENDING: weeklyQuests.value.length, COMPLETED: 0, SKIPPED: 0 }
+  const counts: Record<TaskFilter, number> = { ALL: selectedGoalDailyTasks.value.length + weeklyQuests.value.length, PENDING: 0, COMPLETED: 0, SKIPPED: 0 }
   selectedGoalDailyTasks.value.forEach((task) => { counts[task.status] += 1 })
+  weeklyQuests.value.forEach((quest) => { counts[quest.status] += 1 })
   return counts
 })
 const currentJob = computed(() => deriveCharacterJob(selectedGoal.value))
@@ -88,7 +97,7 @@ function characterImageFor(goal: Pick<Goal, 'title' | 'description'>) {
 const progressPercent = computed(() => character.value?.currentLevelXp ?? 0)
 const clearedRaidIds = computed(() => new Set(attempts.value.filter((attempt) => attempt.status === 'VICTORY').map((attempt) => attempt.bossRaidId)))
 const clearedRaidCount = computed(() => clearedRaidIds.value.size)
-const pendingQuestCount = computed(() => selectedGoalDailyTasks.value.filter((task) => task.status === TASK_STATUS.pending).length + weeklyQuests.value.length)
+const pendingQuestCount = computed(() => selectedGoalDailyTasks.value.filter((task) => task.status === TASK_STATUS.pending).length + weeklyQuests.value.filter((quest) => quest.status === TASK_STATUS.pending).length)
 const authEnabled = computed(() => authState.mode === 'keycloak')
 const authLabel = computed(() => authState.authenticated ? authState.username || 'Authenticated user' : 'Signed out')
 
@@ -104,6 +113,7 @@ async function loadDashboard() {
     const dashboard = await fetchDashboard(today)
     goals.value = dashboard.goals
     tasks.value = dashboard.dailyTasks
+    persistedWeeklyQuests.value = dashboard.weeklyQuests
     character.value = dashboard.character
     raids.value = dashboard.raids
     attempts.value = dashboard.raidAttempts
@@ -149,6 +159,10 @@ function startTaskEdit(task: DailyTask) { editingTaskId.value = task.id; taskDra
 function cancelTaskEdit() { editingTaskId.value = null }
 function isPendingTask(task: DailyTask) { return task.status === TASK_STATUS.pending }
 function taskSourceLabel(task: DailyTask) { return task.status === TASK_STATUS.skipped ? 'SKIPPED' : task.source === 'AI_RECOMMENDED' ? 'SYSTEM DAILY' : 'MANUAL DAILY' }
+function startWeeklyQuestEdit(quest: WeeklyQuest) { editingWeeklyQuestId.value = quest.id; weeklyQuestDraft.value = { title: quest.title, description: quest.description ?? '', goalId: quest.goalId, xpReward: quest.xpReward } }
+function cancelWeeklyQuestEdit() { editingWeeklyQuestId.value = null }
+function isPendingWeeklyQuest(quest: WeeklyQuest) { return quest.status === TASK_STATUS.pending }
+function weeklyQuestSourceLabel(quest: WeeklyQuest) { return quest.status === TASK_STATUS.skipped ? 'SKIPPED' : quest.status === TASK_STATUS.completed ? 'COMPLETED' : quest.source === 'SYSTEM' ? 'SYSTEM WEEKLY' : 'MANUAL WEEKLY' }
 
 async function saveTask(task: DailyTask) {
   if (!taskDraft.value.title.trim() || !Number.isInteger(taskDraft.value.xpReward) || taskDraft.value.xpReward < 1 || taskDraft.value.xpReward > 1000) return
@@ -161,6 +175,17 @@ async function completeTask(task: DailyTask) { await runAction(async () => compl
 async function skipPendingTask(task: DailyTask) { await runAction(async () => { await skipTaskRequest(task) }, 'Daily task skipped.') }
 async function deletePendingTask(taskId: number) { await runAction(async () => { await deleteTaskRequest(taskId) }, 'Daily task deleted.') }
 async function confirmDeletePendingTask(task: DailyTask) { await confirmAction(`Delete "${task.title}"?`, () => deletePendingTask(task.id)) }
+async function saveWeeklyQuest(quest: WeeklyQuest) {
+  if (!weeklyQuestDraft.value.title.trim() || !Number.isInteger(weeklyQuestDraft.value.xpReward) || weeklyQuestDraft.value.xpReward < 1 || weeklyQuestDraft.value.xpReward > 5000) return
+  await runAction(async () => {
+    await axios.put(`/api/bff/weekly-quests/${quest.id}`, weeklyQuestUpdatePayload(quest, { goalId: weeklyQuestDraft.value.goalId, title: weeklyQuestDraft.value.title, description: weeklyQuestDraft.value.description, xpReward: weeklyQuestDraft.value.xpReward }))
+    editingWeeklyQuestId.value = null
+  }, 'Weekly quest updated.')
+}
+async function completeWeeklyQuest(quest: WeeklyQuest) { await runAction(async () => completeWeeklyQuestRequest(quest.id), (xpAwarded) => `Weekly quest complete. +${xpAwarded} XP`) }
+async function skipPendingWeeklyQuest(quest: WeeklyQuest) { await runAction(async () => { await skipWeeklyQuestRequest(quest) }, 'Weekly quest skipped.') }
+async function deletePendingWeeklyQuest(weeklyQuestId: number) { await runAction(async () => { await deleteWeeklyQuestRequest(weeklyQuestId) }, 'Weekly quest deleted.') }
+async function confirmDeletePendingWeeklyQuest(quest: WeeklyQuest) { await confirmAction(`Delete "${quest.title}"?`, () => deletePendingWeeklyQuest(quest.id)) }
 async function attemptRaid(raid: BossRaid) { await runAction(async () => (await axios.post<{ xpAwarded: number }>(`/api/bff/boss-raids/${raid.id}/attempts`)).data.xpAwarded, (xpAwarded) => `${raid.name} cleared. +${xpAwarded} XP`) }
 
 async function runAction<T>(action: () => Promise<T>, successMessage: string | ((result: T) => string)) {
@@ -288,7 +313,20 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
                     </template>
                   </template>
                   <template v-else>
-                    <div class="weekly-icon">W</div><div class="quest-copy"><strong>{{ entry.quest.title }}</strong><span>SYSTEM WEEKLY</span><p>{{ entry.quest.description }}</p></div><b>+{{ entry.quest.xpReward }} XP</b>
+                    <form v-if="editingWeeklyQuestId === entry.quest.id" class="edit-form task-edit-form" @submit.prevent="saveWeeklyQuest(entry.quest)">
+                      <input v-model="weeklyQuestDraft.title" maxlength="200" aria-label="Weekly quest title" />
+                      <input v-model="weeklyQuestDraft.description" aria-label="Weekly quest description" />
+                      <select v-model="weeklyQuestDraft.goalId" aria-label="Weekly quest goal"><option :value="null">No goal</option><option v-for="goal in weeklyQuestGoalOptions" :key="goal.id" :value="goal.id">{{ goal.title }}</option></select>
+                      <input v-model.number="weeklyQuestDraft.xpReward" type="number" min="1" max="5000" aria-label="Weekly quest XP reward" />
+                      <div class="edit-actions"><button type="submit" :disabled="actionPending || !weeklyQuestDraft.title.trim() || !Number.isInteger(weeklyQuestDraft.xpReward) || weeklyQuestDraft.xpReward < 1 || weeklyQuestDraft.xpReward > 5000">Save</button><button type="button" class="secondary-button" @click="cancelWeeklyQuestEdit">Cancel</button></div>
+                    </form>
+                    <template v-else>
+                      <button class="complete-button" :disabled="actionPending || !isPendingWeeklyQuest(entry.quest)" :aria-label="`Complete ${entry.quest.title}`" @click="completeWeeklyQuest(entry.quest)"><span v-if="entry.quest.status === TASK_STATUS.completed">OK</span><span v-else>W</span></button>
+                      <div class="quest-copy"><strong>{{ entry.quest.title }}</strong><span>{{ weeklyQuestSourceLabel(entry.quest) }}</span><p>{{ entry.quest.description }}</p></div><b>+{{ entry.quest.xpReward }} XP</b>
+                      <button v-if="isPendingWeeklyQuest(entry.quest)" class="text-button muted" :disabled="actionPending" @click="skipPendingWeeklyQuest(entry.quest)">Skip</button>
+                      <button v-if="isPendingWeeklyQuest(entry.quest)" class="text-button" :disabled="actionPending" @click="startWeeklyQuestEdit(entry.quest)">Edit</button>
+                      <button v-if="isPendingWeeklyQuest(entry.quest)" class="task-delete-button" :disabled="actionPending" :aria-label="`Delete ${entry.quest.title}`" @click="confirmDeletePendingWeeklyQuest(entry.quest)">Delete</button>
+                    </template>
                   </template>
                 </div>
                 <p v-if="questEntries.length === 0" class="empty-copy">선택한 목표에 표시할 퀘스트가 없습니다.</p>
