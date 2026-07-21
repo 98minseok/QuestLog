@@ -97,6 +97,11 @@ class DashboardServiceTests {
                   "status":"PENDING","source":"AI_RECOMMENDED","xpReward":20,
                   "createdAt":"2026-06-14T09:00:00Z","updatedAt":"2026-06-14T09:00:00Z"}]
                 """);
+        expectGet("/api/be/weekly-quests?weekStartDate=2026-06-08", """
+                [{"id":5,"goalId":1,"title":"Publish weekly recap","description":null,
+                  "weekStartDate":"2026-06-08","status":"PENDING","source":"SYSTEM","xpReward":75,
+                  "createdAt":"2026-06-08T09:00:00Z","updatedAt":"2026-06-08T09:00:00Z"}]
+                """);
         expectGet("/api/be/character", """
                 {"userId":1,"displayName":"Dev Hero","level":2,"totalXp":125,"currentLevelXp":25,
                  "xpToNextLevel":75,"strength":2,"vitality":2}
@@ -120,6 +125,9 @@ class DashboardServiceTests {
         assertThat(dashboard.dailyTasks()).singleElement()
                 .extracting(DashboardResponse.DailyTask::source)
                 .isEqualTo("AI_RECOMMENDED");
+        assertThat(dashboard.weeklyQuests()).singleElement()
+                .extracting(DashboardResponse.WeeklyQuest::source)
+                .isEqualTo("SYSTEM");
         assertThat(dashboard.character().totalXp()).isEqualTo(125);
         assertThat(dashboard.raids()).singleElement()
                 .extracting(DashboardResponse.BossRaid::unlocked)
@@ -324,6 +332,98 @@ class DashboardServiceTests {
         DashboardResponse.DailyTask updated = dashboardService.updateDailyTask(7, request);
 
         assertThat(updated.status()).isEqualTo("PENDING");
+        backend.verify();
+    }
+
+    @Test
+    void proxiesWeeklyQuestLifecycle() {
+        DashboardController.WeeklyQuestRequest request = new DashboardController.WeeklyQuestRequest(
+                3L,
+                "Publish weekly recap",
+                "Summarize the milestone",
+                LocalDate.of(2026, 6, 15),
+                null,
+                75
+        );
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/weekly-quests"))
+                .andExpect(method(POST))
+                .andExpect(content().json("""
+                        {
+                          "goalId":3,
+                          "title":"Publish weekly recap",
+                          "description":"Summarize the milestone",
+                          "weekStartDate":"2026-06-15",
+                          "status":null,
+                          "xpReward":75
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                          "id":17,
+                          "goalId":3,
+                          "title":"Publish weekly recap",
+                          "description":"Summarize the milestone",
+                          "weekStartDate":"2026-06-15",
+                          "status":"PENDING",
+                          "source":"MANUAL",
+                          "xpReward":75,
+                          "createdAt":"2026-06-15T09:00:00Z",
+                          "updatedAt":"2026-06-15T09:00:00Z"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/weekly-quests/17"))
+                .andExpect(method(PUT))
+                .andExpect(content().json("""
+                        {
+                          "goalId":3,
+                          "title":"Publish weekly recap",
+                          "description":"Summarize the milestone",
+                          "weekStartDate":"2026-06-15",
+                          "status":null,
+                          "xpReward":75
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                          "id":17,
+                          "goalId":3,
+                          "title":"Publish weekly recap",
+                          "description":"Summarize the milestone",
+                          "weekStartDate":"2026-06-15",
+                          "status":"PENDING",
+                          "source":"MANUAL",
+                          "xpReward":75,
+                          "createdAt":"2026-06-15T09:00:00Z",
+                          "updatedAt":"2026-06-15T10:00:00Z"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/weekly-quests/17/complete"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess("""
+                        {
+                          "weeklyQuestId":17,
+                          "completionId":4,
+                          "xpAwarded":75,
+                          "totalXp":200,
+                          "level":3,
+                          "strength":3,
+                          "vitality":3
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/weekly-quests/17"))
+                .andExpect(method(DELETE))
+                .andRespond(withNoContent());
+
+        DashboardResponse.WeeklyQuest created = dashboardService.createWeeklyQuest(request);
+        DashboardResponse.WeeklyQuest updated = dashboardService.updateWeeklyQuest(17, request);
+        DashboardResponse.WeeklyQuestCompletionResult completed =
+                dashboardService.completeWeeklyQuest(17);
+        dashboardService.deleteWeeklyQuest(17);
+
+        assertThat(created.id()).isEqualTo(17);
+        assertThat(updated.status()).isEqualTo("PENDING");
+        assertThat(completed.xpAwarded()).isEqualTo(75);
+        assertThat(completed.level()).isEqualTo(3);
         backend.verify();
     }
 

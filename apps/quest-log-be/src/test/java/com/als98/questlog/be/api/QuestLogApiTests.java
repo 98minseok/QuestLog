@@ -241,6 +241,91 @@ class QuestLogApiTests {
     }
 
     @Test
+    void supportsWeeklyQuestCrudAndCompletionRewards() throws Exception {
+        long goalId = createGoal("Ship a weekly milestone");
+        long weeklyQuestId = createWeeklyQuest(goalId, "Write the launch recap", 175);
+
+        mockMvc.perform(get("/api/be/weekly-quests")
+                        .param("weekStartDate", "2026-06-15")
+                        .param("goalId", Long.toString(goalId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].title").value("Write the launch recap"))
+                .andExpect(jsonPath("$[0].source").value("MANUAL"));
+
+        mockMvc.perform(put("/api/be/weekly-quests/{weeklyQuestId}", weeklyQuestId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": %d,
+                                  "title": "Publish the launch recap",
+                                  "description": "Summarize one week of progress",
+                                  "weekStartDate": "2026-06-15",
+                                  "xpReward": 180
+                                }
+                                """.formatted(goalId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Publish the launch recap"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.xpReward").value(180));
+
+        mockMvc.perform(post("/api/be/weekly-quests/{weeklyQuestId}/complete", weeklyQuestId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.xpAwarded").value(180))
+                .andExpect(jsonPath("$.totalXp").value(180))
+                .andExpect(jsonPath("$.level").value(2));
+
+        mockMvc.perform(post("/api/be/weekly-quests/{weeklyQuestId}/complete", weeklyQuestId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Weekly quest " + weeklyQuestId + " has already been completed"));
+
+        mockMvc.perform(delete("/api/be/weekly-quests/{weeklyQuestId}", weeklyQuestId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Weekly quest " + weeklyQuestId
+                                + " cannot be deleted from status COMPLETED"));
+    }
+
+    @Test
+    void keepsAuthenticatedUsersWeeklyQuestsIsolated() throws Exception {
+        MvcResult createdGoal = mockMvc.perform(post("/api/be/goals")
+                        .with(jwt().jwt(token -> token.subject("weekly-alice")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title": "Alice weekly goal"}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long goalId = objectMapper.readTree(createdGoal.getResponse().getContentAsString())
+                .get("id").asLong();
+
+        MvcResult createdQuest = mockMvc.perform(post("/api/be/weekly-quests")
+                        .with(jwt().jwt(token -> token.subject("weekly-alice")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": %d,
+                                  "title": "Alice weekly quest",
+                                  "weekStartDate": "2026-06-15",
+                                  "xpReward": 75
+                                }
+                                """.formatted(goalId)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long weeklyQuestId = objectMapper.readTree(createdQuest.getResponse().getContentAsString())
+                .get("id").asLong();
+
+        mockMvc.perform(get("/api/be/weekly-quests/{weeklyQuestId}", weeklyQuestId)
+                        .with(jwt().jwt(token -> token.subject("weekly-bob"))))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/api/be/weekly-quests")
+                        .with(jwt().jwt(token -> token.subject("weekly-bob"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void returnsSeededBossRaidsAndCurrentUsersAttempts() throws Exception {
         mockMvc.perform(get("/api/be/boss-raids"))
                 .andExpect(status().isOk())
@@ -544,6 +629,23 @@ class QuestLogApiTests {
                                   "title": "%s",
                                   "description": "Integration test task",
                                   "taskDate": "2026-06-14",
+                                  "xpReward": %d
+                                }
+                                """.formatted(goalId, title, xpReward)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+    }
+
+    private long createWeeklyQuest(long goalId, String title, int xpReward) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/be/weekly-quests")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": %d,
+                                  "title": "%s",
+                                  "description": "Integration test weekly quest",
+                                  "weekStartDate": "2026-06-15",
                                   "xpReward": %d
                                 }
                                 """.formatted(goalId, title, xpReward)))

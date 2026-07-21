@@ -22,6 +22,17 @@ export type DailyTask = {
   xpReward: number
 }
 
+export type WeeklyQuest = {
+  id: number
+  goalId: number | null
+  title: string
+  description: string | null
+  weekStartDate: string
+  status: TaskStatus
+  source: 'MANUAL' | 'SYSTEM'
+  xpReward: number
+}
+
 export type CharacterProfile = {
   displayName: string
   level: number
@@ -55,6 +66,7 @@ export type Dashboard = {
   taskDate: string
   goals: Goal[]
   dailyTasks: DailyTask[]
+  weeklyQuests: WeeklyQuest[]
   character: CharacterProfile
   raids: BossRaid[]
   raidAttempts: RaidAttempt[]
@@ -124,6 +136,13 @@ export async function deleteTaskRequest(taskId: number) {
 export async function completeTaskRequest(taskId: number) {
   const response = await axios.post<{ xpAwarded: number }>(
     `/api/bff/daily-tasks/${taskId}/complete`,
+  )
+  return response.data.xpAwarded
+}
+
+export async function completeWeeklyQuestRequest(weeklyQuestId: number) {
+  const response = await axios.post<{ xpAwarded: number }>(
+    `/api/bff/weekly-quests/${weeklyQuestId}/complete`,
   )
   return response.data.xpAwarded
 }

@@ -2,8 +2,12 @@
 import axios from 'axios'
 import { computed, onMounted, ref } from 'vue'
 import { authState, login, logout } from './auth'
-import characterClassesImage from './assets/questlog-character-classes.png'
+import scholarImage from './assets/classes/scholar.png'
+import codeMageImage from './assets/classes/code-mage.png'
+import guardianImage from './assets/classes/guardian.png'
+import strategistImage from './assets/classes/strategist.png'
 import bossImage from './assets/questlog-forest-boss.png'
+import bossBattleImage from './assets/bosses/forest-guardian-battle.png'
 import {
   archiveGoalRequest,
   completeTaskRequest,
@@ -30,6 +34,14 @@ type TabKey = (typeof TABS)[number]
 type QuestEntry =
   | { kind: 'daily'; key: string; task: DailyTask }
   | { kind: 'weekly'; key: string; quest: WeeklyQuest }
+
+const characterImages = {
+  scholar: scholarImage,
+  'code-mage': codeMageImage,
+  guardian: guardianImage,
+  strategist: strategistImage,
+  pathfinder: codeMageImage,
+} as const
 
 const today = new Date().toLocaleDateString('en-CA')
 const loading = ref(true)
@@ -68,7 +80,11 @@ const taskFilterCounts = computed<Record<TaskFilter, number>>(() => {
   return counts
 })
 const currentJob = computed(() => deriveCharacterJob(selectedGoal.value))
+const currentCharacterImage = computed(() => characterImages[currentJob.value.key])
 const jobClassName = computed(() => `job-${currentJob.value.key}`)
+function characterImageFor(goal: Pick<Goal, 'title' | 'description'>) {
+  return characterImages[deriveCharacterJob(goal).key]
+}
 const progressPercent = computed(() => character.value?.currentLevelXp ?? 0)
 const clearedRaidIds = computed(() => new Set(attempts.value.filter((attempt) => attempt.status === 'VICTORY').map((attempt) => attempt.bossRaidId)))
 const clearedRaidCount = computed(() => clearedRaidIds.value.size)
@@ -195,7 +211,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
           </div>
 
           <aside class="character-card" :class="jobClassName">
-            <div class="avatar-frame"><img :src="characterClassesImage" alt="Generated QuestLog character classes" /></div>
+            <div class="avatar-frame"><img :src="currentCharacterImage" :alt="`${currentJob.label} character portrait`" /></div>
             <div class="character-copy">
               <span class="level-badge">LV {{ character?.level ?? 1 }}</span>
               <h2>{{ currentJob.label }}</h2>
@@ -281,8 +297,16 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
           </section>
 
           <section v-else class="tab-panel boss-panel">
-            <div class="boss-hero"><img :src="bossImage" alt="Generated forest guardian boss" /><div><p class="eyebrow">BOSS RAID</p><h2>연초록 숲의 수호자</h2><p>퀘스트를 완료해 성장하고, 잠금 해제된 보스를 격파하세요.</p></div></div>
-            <div class="raid-list"><div v-for="raid in raids" :key="raid.id" class="raid-card"><img :src="bossImage" alt="Boss raid" /><div class="stage">0{{ raid.stage }}</div><div class="raid-copy"><strong>{{ raid.name }}</strong><p>Level {{ raid.requiredLevel }} · {{ raid.maxHp }} HP · +{{ raid.xpReward }} XP</p></div><button v-if="raid.unlocked && !clearedRaidIds.has(raid.id)" class="raid-button" :disabled="actionPending" @click="attemptRaid(raid)">Clear raid</button><span v-else :class="['raid-state', clearedRaidIds.has(raid.id) ? 'cleared' : 'locked']">{{ clearedRaidIds.has(raid.id) ? 'CLEARED' : 'LOCKED' }}</span></div></div>
+            <div class="boss-arena">
+              <img :src="bossBattleImage" alt="Forest guardian battle arena" />
+              <div class="boss-overlay">
+                <p class="eyebrow">LIVE RAID ENCOUNTER</p>
+                <h2>연초록 숲의 수호자</h2>
+                <p>퀘스트를 완료해 성장하고, 잠금 해제된 보스를 격파하세요.</p>
+                <div class="battle-hud"><span>HERO LV {{ character?.level ?? 1 }}</span><span>{{ clearedRaidCount }} CLEARED</span></div>
+              </div>
+            </div>
+            <div class="raid-list"><div v-for="raid in raids" :key="raid.id" class="raid-card"><img :src="bossImage" alt="Boss raid" /><div class="stage">0{{ raid.stage }}</div><div class="raid-copy"><strong>{{ raid.name }}</strong><p>Level {{ raid.requiredLevel }} · {{ raid.maxHp }} HP · +{{ raid.xpReward }} XP</p><div class="boss-hp"><span :style="{ width: `${raid.unlocked ? 72 : 28}%` }"></span></div></div><button v-if="raid.unlocked && !clearedRaidIds.has(raid.id)" class="raid-button" :disabled="actionPending" @click="attemptRaid(raid)">Enter raid</button><span v-else :class="['raid-state', clearedRaidIds.has(raid.id) ? 'cleared' : 'locked']">{{ clearedRaidIds.has(raid.id) ? 'CLEARED' : 'LOCKED' }}</span></div></div>
           </section>
         </template>
 
@@ -296,7 +320,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
             <label>Goal title<input v-model="goalDraft.title" placeholder="예: QuestLog 출시, SQLP 자격증, 체력 강화" maxlength="200" /></label>
             <label>Description<input v-model="goalDraft.description" placeholder="목표 설명을 입력하면 직업과 퀘스트가 더 잘 맞춰집니다." /></label>
             <label>Target date<input v-model="goalDraft.targetDate" type="date" /></label>
-            <div class="modal-preview" :class="`job-${deriveCharacterJob(goalDraft).key}`"><img :src="characterClassesImage" alt="Generated character preview" /><div><strong>{{ deriveCharacterJob(goalDraft).label }}</strong><span>{{ deriveCharacterJob(goalDraft).subtitle }}</span></div></div>
+            <div class="modal-preview" :class="`job-${deriveCharacterJob(goalDraft).key}`"><img :src="characterImageFor(goalDraft)" :alt="`${deriveCharacterJob(goalDraft).label} character preview`" /><div><strong>{{ deriveCharacterJob(goalDraft).label }}</strong><span>{{ deriveCharacterJob(goalDraft).subtitle }}</span></div></div>
             <div class="edit-actions modal-actions"><button type="submit" :disabled="actionPending || !goalDraft.title.trim()">{{ editingGoalId ? 'Save goal' : 'Create goal + auto quests' }}</button><button type="button" class="secondary-button" @click="closeGoalModal">Cancel</button></div>
           </form>
         </section>

@@ -7,6 +7,10 @@ import com.als98.questlog.be.task.DailyTaskAlreadyCompletedException;
 import com.als98.questlog.be.task.DailyTaskNotDeletableException;
 import com.als98.questlog.be.task.DailyTaskNotFoundException;
 import com.als98.questlog.be.task.DailyTaskNotPendingException;
+import com.als98.questlog.be.weekly.WeeklyQuestAlreadyCompletedException;
+import com.als98.questlog.be.weekly.WeeklyQuestNotDeletableException;
+import com.als98.questlog.be.weekly.WeeklyQuestNotFoundException;
+import com.als98.questlog.be.weekly.WeeklyQuestNotPendingException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,13 +33,22 @@ public class ApiExceptionHandler {
         return Map.of("message", exception.getMessage());
     }
 
+    @ExceptionHandler(WeeklyQuestNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    Map<String, String> weeklyQuestNotFound(WeeklyQuestNotFoundException exception) {
+        return Map.of("message", exception.getMessage());
+    }
+
     @ExceptionHandler({
             DailyTaskAlreadyCompletedException.class,
             DailyTaskNotDeletableException.class,
             DailyTaskNotPendingException.class,
             GoalHasTasksException.class,
             RaidAlreadyClearedException.class,
-            RaidLockedException.class
+            RaidLockedException.class,
+            WeeklyQuestAlreadyCompletedException.class,
+            WeeklyQuestNotDeletableException.class,
+            WeeklyQuestNotPendingException.class
     })
     @ResponseStatus(HttpStatus.CONFLICT)
     Map<String, String> conflict(RuntimeException exception) {

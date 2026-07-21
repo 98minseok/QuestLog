@@ -40,6 +40,23 @@ class ProgressionSchemaMigrationTests {
                 taskId,
                 10
         );
+        Long weeklyQuestId = jdbcTemplate.queryForObject(
+                """
+                INSERT INTO weekly_quests (user_id, goal_id, title, week_start_date)
+                VALUES (?, ?, ?, ?)
+                RETURNING id
+                """,
+                Long.class,
+                userId,
+                goalId,
+                "Publish a weekly progress note",
+                java.sql.Date.valueOf("2026-06-15")
+        );
+        jdbcTemplate.update(
+                "INSERT INTO weekly_quest_completions (weekly_quest_id, xp_awarded) VALUES (?, ?)",
+                weeklyQuestId,
+                75
+        );
         jdbcTemplate.update(
                 "INSERT INTO character_profiles (user_id) VALUES (?)",
                 userId
@@ -69,6 +86,13 @@ class ProgressionSchemaMigrationTests {
                 .containsEntry("status", "PENDING")
                 .containsEntry("source", "MANUAL")
                 .containsEntry("xp_reward", 10);
+        assertThat(jdbcTemplate.queryForMap(
+                "SELECT status, source, xp_reward FROM weekly_quests WHERE id = ?",
+                weeklyQuestId
+        ))
+                .containsEntry("status", "PENDING")
+                .containsEntry("source", "SYSTEM")
+                .containsEntry("xp_reward", 75);
         assertThat(jdbcTemplate.queryForMap(
                 "SELECT level, total_xp, strength, vitality FROM character_profiles WHERE user_id = ?",
                 userId
@@ -125,6 +149,33 @@ class ProgressionSchemaMigrationTests {
                 "INSERT INTO task_completions (task_id, xp_awarded) VALUES (?, ?)",
                 taskId,
                 10
+        )).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void rejectsMoreThanOneCompletionForAWeeklyQuest() {
+        Long userId = createUser("progression-user-6");
+        Long weeklyQuestId = jdbcTemplate.queryForObject(
+                """
+                INSERT INTO weekly_quests (user_id, title, week_start_date)
+                VALUES (?, ?, ?)
+                RETURNING id
+                """,
+                Long.class,
+                userId,
+                "Complete a weekly review",
+                java.sql.Date.valueOf("2026-06-15")
+        );
+        jdbcTemplate.update(
+                "INSERT INTO weekly_quest_completions (weekly_quest_id, xp_awarded) VALUES (?, ?)",
+                weeklyQuestId,
+                75
+        );
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                "INSERT INTO weekly_quest_completions (weekly_quest_id, xp_awarded) VALUES (?, ?)",
+                weeklyQuestId,
+                75
         )).isInstanceOf(DataIntegrityViolationException.class);
     }
 

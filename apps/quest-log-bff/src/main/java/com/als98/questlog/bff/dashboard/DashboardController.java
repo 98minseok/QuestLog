@@ -87,6 +87,26 @@ public class DashboardController {
         dashboardService.deleteDailyTask(taskId);
     }
 
+    @PostMapping("/weekly-quests")
+    @ResponseStatus(HttpStatus.CREATED)
+    public DashboardResponse.WeeklyQuest createWeeklyQuest(@Valid @RequestBody WeeklyQuestRequest request) {
+        return dashboardService.createWeeklyQuest(request);
+    }
+
+    @PutMapping("/weekly-quests/{weeklyQuestId}")
+    public DashboardResponse.WeeklyQuest updateWeeklyQuest(
+            @PathVariable long weeklyQuestId,
+            @Valid @RequestBody WeeklyQuestRequest request
+    ) {
+        return dashboardService.updateWeeklyQuest(weeklyQuestId, request);
+    }
+
+    @DeleteMapping("/weekly-quests/{weeklyQuestId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteWeeklyQuest(@PathVariable long weeklyQuestId) {
+        dashboardService.deleteWeeklyQuest(weeklyQuestId);
+    }
+
     @PostMapping("/goals/{goalId}/recommendations")
     public List<DashboardResponse.DailyTask> recommend(
             @PathVariable long goalId,
@@ -108,6 +128,13 @@ public class DashboardController {
                 .uri("/api/be/daily-tasks/{taskId}/complete", taskId)
                 .retrieve()
                 .body(DailyTaskCompletionResponse.class);
+    }
+
+    @PostMapping("/weekly-quests/{weeklyQuestId}/complete")
+    public DashboardResponse.WeeklyQuestCompletionResult completeWeeklyQuest(
+            @PathVariable long weeklyQuestId
+    ) {
+        return dashboardService.completeWeeklyQuest(weeklyQuestId);
     }
 
     @PostMapping("/boss-raids/{bossRaidId}/attempts")
@@ -142,6 +169,16 @@ public class DashboardController {
             int level,
             int strength,
             int vitality
+    ) {
+    }
+
+    public record WeeklyQuestRequest(
+            Long goalId,
+            @NotBlank @Size(max = 200) String title,
+            String description,
+            @NotNull LocalDate weekStartDate,
+            String status,
+            @Min(1) @Max(5000) int xpReward
     ) {
     }
 }

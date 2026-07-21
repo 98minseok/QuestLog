@@ -27,6 +27,7 @@ const dashboard = {
     },
   ],
   dailyTasks: [],
+  weeklyQuests: [],
   character: {
     displayName: 'Test Hero',
     level: 2,

@@ -52,6 +52,16 @@ class DashboardControllerValidationTests {
                 """);
     }
 
+    @Test
+    void rejectsInvalidWeeklyQuestBeforeCallingBackend() throws Exception {
+        assertRejected("/api/bff/weekly-quests", """
+                {
+                  "title":"Invalid weekly quest",
+                  "xpReward":0
+                }
+                """);
+    }
+
     private void assertRejected(String path, String requestBody) throws Exception {
         mockMvc.perform(post(path)
                 .contentType(MediaType.APPLICATION_JSON)

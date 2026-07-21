@@ -15,6 +15,9 @@ public class DashboardService {
     private static final ParameterizedTypeReference<List<DashboardResponse.DailyTask>> TASK_LIST =
             new ParameterizedTypeReference<>() {
             };
+    private static final ParameterizedTypeReference<List<DashboardResponse.WeeklyQuest>> WEEKLY_QUEST_LIST =
+            new ParameterizedTypeReference<>() {
+            };
     private static final ParameterizedTypeReference<List<DashboardResponse.BossRaid>> RAID_LIST =
             new ParameterizedTypeReference<>() {
             };
@@ -40,6 +43,13 @@ public class DashboardService {
                         .build())
                 .retrieve()
                 .body(TASK_LIST);
+        List<DashboardResponse.WeeklyQuest> weeklyQuests = backendRestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/be/weekly-quests")
+                        .queryParam("weekStartDate", taskDate.with(java.time.DayOfWeek.MONDAY))
+                        .build())
+                .retrieve()
+                .body(WEEKLY_QUEST_LIST);
         DashboardResponse.CharacterProfile character = backendRestClient.get()
                 .uri("/api/be/character")
                 .retrieve()
@@ -57,6 +67,7 @@ public class DashboardService {
                 taskDate,
                 List.copyOf(goals),
                 List.copyOf(dailyTasks),
+                List.copyOf(weeklyQuests),
                 character,
                 List.copyOf(raids),
                 List.copyOf(raidAttempts)
@@ -135,6 +146,41 @@ public class DashboardService {
                 .uri("/api/be/daily-tasks/{taskId}", taskId)
                 .retrieve()
                 .toBodilessEntity();
+    }
+
+    public DashboardResponse.WeeklyQuest createWeeklyQuest(
+            DashboardController.WeeklyQuestRequest request
+    ) {
+        return backendRestClient.post()
+                .uri("/api/be/weekly-quests")
+                .body(request)
+                .retrieve()
+                .body(DashboardResponse.WeeklyQuest.class);
+    }
+
+    public DashboardResponse.WeeklyQuest updateWeeklyQuest(
+            long weeklyQuestId,
+            DashboardController.WeeklyQuestRequest request
+    ) {
+        return backendRestClient.put()
+                .uri("/api/be/weekly-quests/{weeklyQuestId}", weeklyQuestId)
+                .body(request)
+                .retrieve()
+                .body(DashboardResponse.WeeklyQuest.class);
+    }
+
+    public void deleteWeeklyQuest(long weeklyQuestId) {
+        backendRestClient.delete()
+                .uri("/api/be/weekly-quests/{weeklyQuestId}", weeklyQuestId)
+                .retrieve()
+                .toBodilessEntity();
+    }
+
+    public DashboardResponse.WeeklyQuestCompletionResult completeWeeklyQuest(long weeklyQuestId) {
+        return backendRestClient.post()
+                .uri("/api/be/weekly-quests/{weeklyQuestId}/complete", weeklyQuestId)
+                .retrieve()
+                .body(DashboardResponse.WeeklyQuestCompletionResult.class);
     }
 
     private record BackendGoalRequest(

@@ -8,6 +8,7 @@ public record DashboardResponse(
         LocalDate taskDate,
         List<Goal> goals,
         List<DailyTask> dailyTasks,
+        List<WeeklyQuest> weeklyQuests,
         CharacterProfile character,
         List<BossRaid> raids,
         List<RaidAttempt> raidAttempts
@@ -30,6 +31,20 @@ public record DashboardResponse(
             String title,
             String description,
             LocalDate taskDate,
+            String status,
+            String source,
+            int xpReward,
+            OffsetDateTime createdAt,
+            OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record WeeklyQuest(
+            long id,
+            Long goalId,
+            String title,
+            String description,
+            LocalDate weekStartDate,
             String status,
             String source,
             int xpReward,
@@ -81,6 +96,17 @@ public record DashboardResponse(
             int stage,
             String status,
             int damageDealt,
+            int xpAwarded,
+            long totalXp,
+            int level,
+            int strength,
+            int vitality
+    ) {
+    }
+
+    public record WeeklyQuestCompletionResult(
+            long weeklyQuestId,
+            long completionId,
             int xpAwarded,
             long totalXp,
             int level,

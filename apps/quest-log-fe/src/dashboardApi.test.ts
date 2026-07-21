@@ -2,6 +2,7 @@ import axios from 'axios'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   archiveGoalRequest,
+  completeWeeklyQuestRequest,
   completeTaskRequest,
   createGoalRequest,
   deleteTaskRequest,
@@ -118,6 +119,13 @@ describe('dashboard API lifecycle requests', () => {
 
     await expect(completeTaskRequest(task.id)).resolves.toBe(25)
     expect(mockedAxios.post).toHaveBeenCalledWith('/api/bff/daily-tasks/11/complete')
+  })
+
+  it('returns awarded XP from weekly quest completion', async () => {
+    mockedAxios.post.mockResolvedValue({ data: { xpAwarded: 75 } })
+
+    await expect(completeWeeklyQuestRequest(17)).resolves.toBe(75)
+    expect(mockedAxios.post).toHaveBeenCalledWith('/api/bff/weekly-quests/17/complete')
   })
 })
 
