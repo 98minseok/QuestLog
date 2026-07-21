@@ -6,6 +6,7 @@ import {
   archiveGoalRequest,
   completeWeeklyQuestRequest,
   fetchDashboard,
+  fetchRecommendationHistoryRequest,
   previewDailyRecommendationsRequest,
   type Dashboard,
 } from './dashboardApi'
@@ -20,6 +21,7 @@ vi.mock('./dashboardApi', async (importOriginal) => {
     deleteWeeklyQuestRequest: vi.fn(),
     deleteTaskRequest: vi.fn(),
     fetchDashboard: vi.fn(),
+    fetchRecommendationHistoryRequest: vi.fn(),
     acceptDailyRecommendationsRequest: vi.fn(),
     previewDailyRecommendationsRequest: vi.fn(),
     skipWeeklyQuestRequest: vi.fn(),
@@ -67,6 +69,7 @@ const dashboard: Dashboard = {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(fetchDashboard).mockResolvedValue(dashboard)
+  vi.mocked(fetchRecommendationHistoryRequest).mockResolvedValue([])
   vi.mocked(archiveGoalRequest).mockResolvedValue()
   vi.mocked(completeWeeklyQuestRequest).mockResolvedValue(75)
   vi.mocked(acceptDailyRecommendationsRequest).mockResolvedValue([])
@@ -115,6 +118,21 @@ describe('App dashboard lifecycle', () => {
   })
 
   it('previews, edits, rejects, and accepts selected daily quest recommendations', async () => {
+    vi.mocked(fetchRecommendationHistoryRequest).mockResolvedValue([
+      {
+        id: 41,
+        goalId: 7,
+        createdTaskId: 31,
+        provider: 'deterministic-mock',
+        action: 'ACCEPTED',
+        title: 'Rehearse the QuestLog launch demo',
+        description: 'Practice the edited pitch flow',
+        taskDate: '2026-06-15',
+        source: 'AI_RECOMMENDED',
+        xpReward: 35,
+        createdAt: '2026-06-15T09:00:00Z',
+      },
+    ])
     vi.mocked(previewDailyRecommendationsRequest).mockResolvedValue([
       {
         goalId: 7,
@@ -147,6 +165,10 @@ describe('App dashboard lifecycle', () => {
     ])
     const wrapper = mount(App)
     await flushPromises()
+
+    expect(fetchRecommendationHistoryRequest).toHaveBeenCalledWith(7, 6)
+    expect(wrapper.text()).toContain('AI ACTIVITY')
+    expect(wrapper.text()).toContain('Rehearse the QuestLog launch demo')
 
     const generateButton = wrapper.findAll('button').find((button) => button.text() === 'Generate Quests')
     expect(generateButton).toBeDefined()

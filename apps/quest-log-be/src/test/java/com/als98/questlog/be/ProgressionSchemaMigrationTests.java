@@ -58,6 +58,21 @@ class ProgressionSchemaMigrationTests {
                 75
         );
         jdbcTemplate.update(
+                """
+                INSERT INTO recommendation_history (
+                    user_id, goal_id, provider, action, title, task_date, xp_reward
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                userId,
+                goalId,
+                "deterministic-mock",
+                "PREVIEWED",
+                "Plan the next step",
+                java.sql.Date.valueOf("2026-06-14"),
+                10
+        );
+        jdbcTemplate.update(
                 "INSERT INTO character_profiles (user_id) VALUES (?)",
                 userId
         );
@@ -93,6 +108,14 @@ class ProgressionSchemaMigrationTests {
                 .containsEntry("status", "PENDING")
                 .containsEntry("source", "SYSTEM")
                 .containsEntry("xp_reward", 75);
+        assertThat(jdbcTemplate.queryForMap(
+                "SELECT provider, action, source, xp_reward FROM recommendation_history WHERE goal_id = ?",
+                goalId
+        ))
+                .containsEntry("provider", "deterministic-mock")
+                .containsEntry("action", "PREVIEWED")
+                .containsEntry("source", "AI_RECOMMENDED")
+                .containsEntry("xp_reward", 10);
         assertThat(jdbcTemplate.queryForMap(
                 "SELECT level, total_xp, strength, vitality FROM character_profiles WHERE user_id = ?",
                 userId

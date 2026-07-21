@@ -34,6 +34,9 @@ public class DashboardController {
     private static final ParameterizedTypeReference<List<DashboardResponse.RecommendationDraft>> RECOMMENDATION_DRAFT_LIST =
             new ParameterizedTypeReference<>() {
             };
+    private static final ParameterizedTypeReference<List<DashboardResponse.RecommendationHistory>> RECOMMENDATION_HISTORY_LIST =
+            new ParameterizedTypeReference<>() {
+            };
 
     private final DashboardService dashboardService;
     private final RestClient backendRestClient;
@@ -151,6 +154,20 @@ public class DashboardController {
                 .body(drafts)
                 .retrieve()
                 .body(TASK_LIST);
+    }
+
+    @GetMapping("/goals/{goalId}/recommendations/history")
+    public List<DashboardResponse.RecommendationHistory> recommendationHistory(
+            @PathVariable long goalId,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit
+    ) {
+        return backendRestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/be/goals/{goalId}/recommendations/history")
+                        .queryParam("limit", limit)
+                        .build(goalId))
+                .retrieve()
+                .body(RECOMMENDATION_HISTORY_LIST);
     }
 
     @PostMapping("/daily-tasks/{taskId}/complete")

@@ -31,6 +31,20 @@ export type RecommendationDraft = {
   source: TaskSource
 }
 
+export type RecommendationHistory = {
+  id: number
+  goalId: number
+  createdTaskId: number | null
+  provider: string
+  action: 'PREVIEWED' | 'ACCEPTED'
+  title: string
+  description: string | null
+  taskDate: string
+  xpReward: number
+  source: 'AI_RECOMMENDED'
+  createdAt: string
+}
+
 export type WeeklyQuest = {
   id: number
   goalId: number | null
@@ -165,6 +179,14 @@ export async function acceptDailyRecommendationsRequest(goalId: number, drafts: 
       taskDate: draft.taskDate,
       xpReward: draft.xpReward,
     })),
+  )
+  return response.data
+}
+
+export async function fetchRecommendationHistoryRequest(goalId: number, limit = 10) {
+  const response = await axios.get<RecommendationHistory[]>(
+    `/api/bff/goals/${goalId}/recommendations/history`,
+    { params: { limit } },
   )
   return response.data
 }

@@ -158,6 +158,38 @@ class DashboardErrorForwardingTests {
     }
 
     @Test
+    void proxiesRecommendationHistoryForAGoal() throws Exception {
+        backend.expect(once(), requestTo(
+                        "http://localhost:8081/api/be/goals/9/recommendations/history?limit=5"))
+                .andExpect(method(GET))
+                .andRespond(withSuccess("""
+                        [{
+                          "id":31,
+                          "goalId":9,
+                          "createdTaskId":21,
+                          "provider":"deterministic-mock",
+                          "action":"ACCEPTED",
+                          "title":"Rehearse the three-minute demo",
+                          "description":"Practice the edited pitch flow.",
+                          "taskDate":"2026-06-16",
+                          "xpReward":35,
+                          "source":"AI_RECOMMENDED",
+                          "createdAt":"2026-06-16T09:00:00Z"
+                        }]
+                        """, MediaType.APPLICATION_JSON));
+
+        mockMvc.perform(get("/api/bff/goals/9/recommendations/history")
+                        .param("limit", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].goalId").value(9))
+                .andExpect(jsonPath("$[0].createdTaskId").value(21))
+                .andExpect(jsonPath("$[0].provider").value("deterministic-mock"))
+                .andExpect(jsonPath("$[0].action").value("ACCEPTED"));
+
+        backend.verify();
+    }
+
+    @Test
     void forwardsDirectCompletionUpdateRejectionFromBackend() throws Exception {
         assertForwardedError(
                 PUT,

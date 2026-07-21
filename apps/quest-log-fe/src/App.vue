@@ -17,6 +17,7 @@ import {
   deleteTaskRequest,
   deleteWeeklyQuestRequest,
   fetchDashboard,
+  fetchRecommendationHistoryRequest,
   previewDailyRecommendationsRequest,
   skipWeeklyQuestRequest,
   skipTaskRequest,
@@ -28,6 +29,7 @@ import {
   type Goal,
   type RaidAttempt,
   type RecommendationDraft,
+  type RecommendationHistory,
   type WeeklyQuest,
 } from './dashboardApi'
 import { deriveCharacterJob } from './questPersona'
@@ -73,6 +75,7 @@ const editingTaskId = ref<number | null>(null)
 const taskDraft = ref({ title: '', description: '', goalId: null as number | null, xpReward: 10 })
 const recommendationDrafts = ref<ReviewDraft[]>([])
 const recommendationGoalId = ref<number | null>(null)
+const recommendationHistory = ref<RecommendationHistory[]>([])
 const editingWeeklyQuestId = ref<number | null>(null)
 const weeklyQuestDraft = ref({ title: '', description: '', goalId: null as number | null, xpReward: 40 })
 
@@ -107,6 +110,7 @@ const pendingQuestCount = computed(() => selectedGoalDailyTasks.value.filter((ta
 const authEnabled = computed(() => authState.mode === 'keycloak')
 const authLabel = computed(() => authState.authenticated ? authState.username || 'Authenticated user' : 'Signed out')
 const hasRecommendationDrafts = computed(() => recommendationGoalId.value === selectedGoal.value?.id && recommendationDrafts.value.length > 0)
+const selectedGoalRecommendationHistory = computed(() => selectedGoal.value ? recommendationHistory.value.filter((item) => item.goalId === selectedGoal.value?.id) : recommendationHistory.value)
 const selectedRecommendationDrafts = computed(() => recommendationDrafts.value.filter((draft) => draft.selected))
 const canAcceptRecommendationDrafts = computed(() => selectedRecommendationDrafts.value.length > 0 && selectedRecommendationDrafts.value.every((draft) => (
   draft.title.trim()
@@ -132,11 +136,20 @@ async function loadDashboard() {
     raids.value = dashboard.raids
     attempts.value = dashboard.raidAttempts
     if ((selectedGoalId.value === null || !activeGoals.value.some((goal) => goal.id === selectedGoalId.value)) && activeGoals.value.length > 0) selectedGoalId.value = activeGoals.value[0]?.id ?? null
+    await loadRecommendationHistory()
   } catch (caught) {
     error.value = apiMessage(caught)
   } finally {
     loading.value = false
   }
+}
+
+async function loadRecommendationHistory() {
+  if (!selectedGoalId.value) {
+    recommendationHistory.value = []
+    return
+  }
+  recommendationHistory.value = await fetchRecommendationHistoryRequest(selectedGoalId.value, 6)
 }
 
 function openGoalModal(goal?: Goal) {
@@ -205,6 +218,11 @@ function dismissDailyRecommendations() {
   recommendationDrafts.value = []
   recommendationGoalId.value = null
   notice.value = 'Recommended quests dismissed.'
+}
+
+async function selectGoal(goalId: number) {
+  selectedGoalId.value = goalId
+  await loadRecommendationHistory()
 }
 
 function startTaskEdit(task: DailyTask) { editingTaskId.value = task.id; taskDraft.value = { title: task.title, description: task.description ?? '', goalId: task.goalId, xpReward: task.xpReward } }
@@ -313,7 +331,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
 
         <template v-else>
           <nav class="goal-rail" aria-label="Active goals">
-            <button v-for="goal in activeGoals" :key="goal.id" type="button" class="goal-chip" :class="{ active: selectedGoal?.id === goal.id }" @click="selectedGoalId = goal.id">
+            <button v-for="goal in activeGoals" :key="goal.id" type="button" class="goal-chip" :class="{ active: selectedGoal?.id === goal.id }" @click="selectGoal(goal.id)">
               <span>{{ goal.title }}</span><small>{{ deriveCharacterJob(goal).label }}</small>
             </button>
             <button type="button" class="goal-chip add-goal" @click="openGoalModal()"><span>+ 목표 추가</span><small>자동 퀘스트 생성</small></button>
@@ -335,6 +353,14 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
                 <button v-if="selectedGoal" class="text-button" type="button" @click="openGoalModal(selectedGoal)">Edit Goal</button>
                 <button v-if="selectedGoal" class="text-button" type="button" :disabled="actionPending" @click="previewDailyRecommendations(selectedGoal)">Generate Quests</button>
                 <button v-if="selectedGoal" class="text-button muted" type="button" @click="confirmArchiveGoal(selectedGoal)">Archive</button>
+              </div>
+              <div v-if="selectedGoalRecommendationHistory.length > 0" class="recommendation-history">
+                <p class="eyebrow">AI ACTIVITY</p>
+                <div v-for="item in selectedGoalRecommendationHistory" :key="item.id" class="history-row">
+                  <span>{{ item.action }}</span>
+                  <strong>{{ item.title }}</strong>
+                  <small>+{{ item.xpReward }} XP</small>
+                </div>
               </div>
             </aside>
 

@@ -9,6 +9,7 @@ import {
   deleteTaskRequest,
   deleteWeeklyQuestRequest,
   fetchDashboard,
+  fetchRecommendationHistoryRequest,
   previewDailyRecommendationsRequest,
   recommendDailyTasksRequest,
   skipTaskRequest,
@@ -160,6 +161,31 @@ describe('dashboard API lifecycle requests', () => {
           xpReward: 35,
         },
       ],
+    )
+  })
+
+  it('loads recent recommendation history for a goal', async () => {
+    const history = [
+      {
+        id: 41,
+        goalId: goal.id,
+        createdTaskId: task.id,
+        provider: 'deterministic-mock',
+        action: 'ACCEPTED' as const,
+        title: 'Rehearse the three-minute demo',
+        description: 'Practice the edited pitch flow.',
+        taskDate: '2026-06-16',
+        xpReward: 35,
+        source: 'AI_RECOMMENDED' as const,
+        createdAt: '2026-06-16T09:00:00Z',
+      },
+    ]
+    mockedAxios.get.mockResolvedValue({ data: history })
+
+    await expect(fetchRecommendationHistoryRequest(goal.id, 5)).resolves.toEqual(history)
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      '/api/bff/goals/7/recommendations/history',
+      { params: { limit: 5 } },
     )
   })
 

@@ -80,6 +80,18 @@ public class RecommendationController {
         );
     }
 
+    @GetMapping("/history")
+    public List<RecommendationHistory> history(
+            @PathVariable long goalId,
+            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit
+    ) {
+        return recommendationService.findHistory(
+                currentUserService.currentUserId(),
+                goalId,
+                limit
+        );
+    }
+
     public record RecommendationDraftRequest(
             @NotBlank @Size(max = 200) String title,
             String description,

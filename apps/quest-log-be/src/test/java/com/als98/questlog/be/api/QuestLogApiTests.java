@@ -190,6 +190,14 @@ class QuestLogApiTests {
                 Integer.class,
                 goalId
         )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT count(*) FROM recommendation_history
+                WHERE goal_id = ? AND action = 'PREVIEWED'
+                """,
+                Integer.class,
+                goalId
+        )).isEqualTo(3);
 
         MvcResult first = mockMvc.perform(post("/api/be/goals/{goalId}/recommendations", goalId)
                         .param("taskDate", "2026-06-14"))
@@ -210,6 +218,14 @@ class QuestLogApiTests {
         assertThat(secondBody.get(0).get("id").asLong()).isEqualTo(firstBody.get(0).get("id").asLong());
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM daily_tasks WHERE goal_id = ? AND source = 'AI_RECOMMENDED'",
+                Integer.class,
+                goalId
+        )).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT count(*) FROM recommendation_history
+                WHERE goal_id = ? AND action = 'ACCEPTED'
+                """,
                 Integer.class,
                 goalId
         )).isEqualTo(3);
@@ -249,6 +265,39 @@ class QuestLogApiTests {
                 Integer.class,
                 goalId
         )).isOne();
+
+        mockMvc.perform(get("/api/be/goals/{goalId}/recommendations/history", goalId)
+                        .param("limit", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].goalId").value(goalId))
+                .andExpect(jsonPath("$[0].createdTaskId").isNumber())
+                .andExpect(jsonPath("$[0].provider").value("deterministic-mock"))
+                .andExpect(jsonPath("$[0].action").value("ACCEPTED"))
+                .andExpect(jsonPath("$[0].title").value("Rehearse the three-minute demo"));
+    }
+
+    @Test
+    void keepsRecommendationHistoryIsolatedByAuthenticatedUser() throws Exception {
+        MvcResult createdGoal = mockMvc.perform(post("/api/be/goals")
+                        .with(jwt().jwt(token -> token.subject("history-alice")))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title": "Alice recommendation goal"}
+                                """))
+                .andExpect(status().isCreated())
+                .andReturn();
+        long goalId = objectMapper.readTree(createdGoal.getResponse().getContentAsString())
+                .get("id").asLong();
+
+        mockMvc.perform(get("/api/be/goals/{goalId}/recommendations/preview", goalId)
+                        .with(jwt().jwt(token -> token.subject("history-alice")))
+                        .param("taskDate", "2026-06-16"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/be/goals/{goalId}/recommendations/history", goalId)
+                        .with(jwt().jwt(token -> token.subject("history-bob"))))
+                .andExpect(status().isNotFound());
     }
 
     @Test
