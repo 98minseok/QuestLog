@@ -7,6 +7,7 @@ import java.util.List;
 public record DashboardResponse(
         LocalDate taskDate,
         List<Goal> goals,
+        List<GoalProgressSummary> goalProgressSummaries,
         List<DailyTask> dailyTasks,
         List<WeeklyQuest> weeklyQuests,
         CharacterProfile character,
@@ -23,6 +24,19 @@ public record DashboardResponse(
             LocalDate targetDate,
             OffsetDateTime createdAt,
             OffsetDateTime updatedAt
+    ) {
+    }
+
+    public record GoalProgressSummary(
+            long goalId,
+            int dailyQuestCount,
+            int weeklyQuestCount,
+            int completedQuestCount,
+            int pendingQuestCount,
+            int skippedQuestCount,
+            long earnedXp,
+            long availableXp,
+            int completionRate
     ) {
     }
 

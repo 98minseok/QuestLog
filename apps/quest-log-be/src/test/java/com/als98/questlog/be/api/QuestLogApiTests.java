@@ -394,6 +394,42 @@ class QuestLogApiTests {
     }
 
     @Test
+    void returnsPersistedGoalProgressSummariesAcrossDailyAndWeeklyQuests() throws Exception {
+        long goalId = createGoal("Measure goal progress");
+        long completedTaskId = createTask(goalId, "Complete the first quest", 40);
+        createTask(goalId, "Keep a pending daily quest", 20);
+        long weeklyQuestId = createWeeklyQuest(goalId, "Skip a weekly milestone", 80);
+
+        mockMvc.perform(post("/api/be/daily-tasks/{taskId}/complete", completedTaskId))
+                .andExpect(status().isOk());
+        mockMvc.perform(put("/api/be/weekly-quests/{weeklyQuestId}", weeklyQuestId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "goalId": %d,
+                                  "title": "Skip a weekly milestone",
+                                  "description": "Integration test weekly quest",
+                                  "weekStartDate": "2026-06-15",
+                                  "status": "SKIPPED",
+                                  "xpReward": 80
+                                }
+                                """.formatted(goalId)))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/be/goals/progress-summaries"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].goalId").value(goalId))
+                .andExpect(jsonPath("$[0].dailyQuestCount").value(2))
+                .andExpect(jsonPath("$[0].weeklyQuestCount").value(1))
+                .andExpect(jsonPath("$[0].completedQuestCount").value(1))
+                .andExpect(jsonPath("$[0].pendingQuestCount").value(1))
+                .andExpect(jsonPath("$[0].skippedQuestCount").value(1))
+                .andExpect(jsonPath("$[0].earnedXp").value(40))
+                .andExpect(jsonPath("$[0].availableXp").value(140))
+                .andExpect(jsonPath("$[0].completionRate").value(33));
+    }
+
+    @Test
     void weeklyRecommendationsCreateSystemQuestsOncePerGoalAndWeek() throws Exception {
         long goalId = createGoal("Prepare investor update");
 

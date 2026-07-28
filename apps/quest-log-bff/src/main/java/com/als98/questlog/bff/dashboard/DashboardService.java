@@ -12,6 +12,9 @@ public class DashboardService {
     private static final ParameterizedTypeReference<List<DashboardResponse.Goal>> GOAL_LIST =
             new ParameterizedTypeReference<>() {
             };
+    private static final ParameterizedTypeReference<List<DashboardResponse.GoalProgressSummary>> GOAL_PROGRESS_SUMMARY_LIST =
+            new ParameterizedTypeReference<>() {
+            };
     private static final ParameterizedTypeReference<List<DashboardResponse.DailyTask>> TASK_LIST =
             new ParameterizedTypeReference<>() {
             };
@@ -39,6 +42,10 @@ public class DashboardService {
                 .uri("/api/be/goals")
                 .retrieve()
                 .body(GOAL_LIST);
+        List<DashboardResponse.GoalProgressSummary> goalProgressSummaries = backendRestClient.get()
+                .uri("/api/be/goals/progress-summaries")
+                .retrieve()
+                .body(GOAL_PROGRESS_SUMMARY_LIST);
         List<DashboardResponse.DailyTask> dailyTasks = backendRestClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/be/daily-tasks")
@@ -76,6 +83,7 @@ public class DashboardService {
         return new DashboardResponse(
                 taskDate,
                 List.copyOf(goals),
+                List.copyOf(goalProgressSummaries),
                 List.copyOf(dailyTasks),
                 List.copyOf(weeklyQuests),
                 character,

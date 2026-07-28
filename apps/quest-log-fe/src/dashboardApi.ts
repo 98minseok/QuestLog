@@ -22,6 +22,18 @@ export type DailyTask = {
   xpReward: number
 }
 
+export type GoalProgressSummary = {
+  goalId: number
+  dailyQuestCount: number
+  weeklyQuestCount: number
+  completedQuestCount: number
+  pendingQuestCount: number
+  skippedQuestCount: number
+  earnedXp: number
+  availableXp: number
+  completionRate: number
+}
+
 export type RecommendationDraft = {
   goalId: number | null
   title: string
@@ -101,6 +113,7 @@ export type RaidAttempt = {
 export type Dashboard = {
   taskDate: string
   goals: Goal[]
+  goalProgressSummaries: GoalProgressSummary[]
   dailyTasks: DailyTask[]
   weeklyQuests: WeeklyQuest[]
   character: CharacterProfile

@@ -23,15 +23,26 @@ public class GoalController {
 
     private final CurrentUserService currentUserService;
     private final GoalService goalService;
+    private final GoalProgressSummaryService progressSummaryService;
 
-    public GoalController(CurrentUserService currentUserService, GoalService goalService) {
+    public GoalController(
+            CurrentUserService currentUserService,
+            GoalService goalService,
+            GoalProgressSummaryService progressSummaryService
+    ) {
         this.currentUserService = currentUserService;
         this.goalService = goalService;
+        this.progressSummaryService = progressSummaryService;
     }
 
     @GetMapping
     public List<Goal> list() {
         return goalService.findAll(currentUserService.currentUserId());
+    }
+
+    @GetMapping("/progress-summaries")
+    public List<GoalProgressSummary> progressSummaries() {
+        return progressSummaryService.findAll(currentUserService.currentUserId());
     }
 
     @GetMapping("/{goalId}")

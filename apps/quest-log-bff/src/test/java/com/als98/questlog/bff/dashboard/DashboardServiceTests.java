@@ -92,6 +92,11 @@ class DashboardServiceTests {
                   "targetDate":"2026-06-30","createdAt":"2026-06-01T09:00:00Z",
                   "updatedAt":"2026-06-01T09:00:00Z"}]
                 """);
+        expectGet("/api/be/goals/progress-summaries", """
+                [{"goalId":1,"dailyQuestCount":2,"weeklyQuestCount":1,"completedQuestCount":1,
+                  "pendingQuestCount":2,"skippedQuestCount":0,"earnedXp":20,"availableXp":95,
+                  "completionRate":33}]
+                """);
         expectGet("/api/be/daily-tasks?taskDate=2026-06-14", """
                 [{"id":2,"goalId":1,"title":"Add BFF","description":null,"taskDate":"2026-06-14",
                   "status":"PENDING","source":"AI_RECOMMENDED","xpReward":20,
@@ -127,6 +132,9 @@ class DashboardServiceTests {
         assertThat(dashboard.goals()).singleElement()
                 .extracting(DashboardResponse.Goal::title)
                 .isEqualTo("Ship MVP");
+        assertThat(dashboard.goalProgressSummaries()).singleElement()
+                .extracting(DashboardResponse.GoalProgressSummary::completionRate)
+                .isEqualTo(33);
         assertThat(dashboard.dailyTasks()).singleElement()
                 .extracting(DashboardResponse.DailyTask::source)
                 .isEqualTo("AI_RECOMMENDED");

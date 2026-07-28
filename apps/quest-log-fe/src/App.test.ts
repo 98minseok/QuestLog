@@ -42,6 +42,19 @@ const dashboard: Dashboard = {
       targetDate: null,
     },
   ],
+  goalProgressSummaries: [
+    {
+      goalId: 7,
+      dailyQuestCount: 1,
+      weeklyQuestCount: 1,
+      completedQuestCount: 1,
+      pendingQuestCount: 1,
+      skippedQuestCount: 0,
+      earnedXp: 25,
+      availableXp: 100,
+      completionRate: 50,
+    },
+  ],
   dailyTasks: [],
   weeklyQuests: [
     {
@@ -113,6 +126,8 @@ describe('App dashboard lifecycle', () => {
     expect(wrapper.text()).toContain('Test Hero')
     expect(wrapper.text()).toContain('XP LOG')
     expect(wrapper.text()).toContain('WEEKLY QUEST')
+    expect(wrapper.text()).toContain('COMPLETION')
+    expect(wrapper.text()).toContain('25/100')
   })
 
   it('archives a goal after confirmation and refreshes the dashboard', async () => {

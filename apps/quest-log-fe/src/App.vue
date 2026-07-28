@@ -29,6 +29,7 @@ import {
   type CharacterProgressionEvent,
   type DailyTask,
   type Goal,
+  type GoalProgressSummary,
   type RaidAttempt,
   type RecommendationDraft,
   type RecommendationHistory,
@@ -62,6 +63,7 @@ const actionPending = ref(false)
 const error = ref('')
 const notice = ref('')
 const goals = ref<Goal[]>([])
+const goalProgressSummaries = ref<GoalProgressSummary[]>([])
 const tasks = ref<DailyTask[]>([])
 const persistedWeeklyQuests = ref<WeeklyQuest[]>([])
 const character = ref<CharacterProfile | null>(null)
@@ -88,6 +90,8 @@ const activeGoals = computed(() => goals.value.filter((goal) => goal.status === 
 const selectedGoal = computed(() => activeGoals.value.find((goal) => goal.id === selectedGoalId.value) ?? activeGoals.value[0] ?? null)
 const taskGoalOptions = computed(() => goals.value.filter((goal) => goal.status === GOAL_STATUS.active || goal.id === taskDraft.value.goalId))
 const weeklyQuestGoalOptions = computed(() => goals.value.filter((goal) => goal.status === GOAL_STATUS.active || goal.id === weeklyQuestDraft.value.goalId))
+const progressSummaryByGoalId = computed(() => new Map(goalProgressSummaries.value.map((summary) => [summary.goalId, summary])))
+const selectedGoalProgressSummary = computed(() => selectedGoal.value ? progressSummaryByGoalId.value.get(selectedGoal.value.id) ?? null : null)
 const selectedGoalDailyTasks = computed(() => selectedGoal.value ? tasks.value.filter((task) => task.goalId === selectedGoal.value?.id) : tasks.value)
 const weeklyQuests = computed(() => selectedGoal.value ? persistedWeeklyQuests.value.filter((quest) => quest.goalId === selectedGoal.value?.id) : persistedWeeklyQuests.value)
 const filteredDailyTasks = computed(() => taskFilter.value === 'ALL' ? selectedGoalDailyTasks.value : selectedGoalDailyTasks.value.filter((task) => task.status === taskFilter.value))
@@ -107,6 +111,11 @@ const currentCharacterImage = computed(() => characterImages[currentJob.value.ke
 const jobClassName = computed(() => `job-${currentJob.value.key}`)
 function characterImageFor(goal: Pick<Goal, 'title' | 'description'>) {
   return characterImages[deriveCharacterJob(goal).key]
+}
+function goalProgressLabel(goalId: number) {
+  const summary = progressSummaryByGoalId.value.get(goalId)
+  if (!summary) return 'No quests yet'
+  return `${summary.completedQuestCount}/${summary.dailyQuestCount + summary.weeklyQuestCount} done`
 }
 const progressPercent = computed(() => character.value?.currentLevelXp ?? 0)
 const clearedRaidIds = computed(() => new Set(attempts.value.filter((attempt) => attempt.status === 'VICTORY').map((attempt) => attempt.bossRaidId)))
@@ -142,6 +151,7 @@ async function loadDashboard() {
   try {
     const dashboard = await fetchDashboard(today)
     goals.value = dashboard.goals
+    goalProgressSummaries.value = dashboard.goalProgressSummaries ?? []
     tasks.value = dashboard.dailyTasks
     persistedWeeklyQuests.value = dashboard.weeklyQuests
     character.value = dashboard.character
@@ -371,7 +381,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
         <template v-else>
           <nav class="goal-rail" aria-label="Active goals">
             <button v-for="goal in activeGoals" :key="goal.id" type="button" class="goal-chip" :class="{ active: selectedGoal?.id === goal.id }" @click="selectGoal(goal.id)">
-              <span>{{ goal.title }}</span><small>{{ deriveCharacterJob(goal).label }}</small>
+              <span>{{ goal.title }}</span><small>{{ deriveCharacterJob(goal).label }} / {{ goalProgressLabel(goal.id) }}</small>
             </button>
             <button type="button" class="goal-chip add-goal" @click="openGoalModal()"><span>+ Add goal</span><small>Auto-generate quests</small></button>
           </nav>
@@ -388,6 +398,11 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
               <h2>{{ selectedGoal?.title ?? 'Set a goal first.' }}</h2>
               <p>{{ selectedGoal?.description ?? 'Once a goal exists, QuestLog can prepare daily and weekly quests for it.' }}</p>
               <div class="focus-job"><span>{{ currentJob.label }}</span><small>{{ currentJob.subtitle }}</small></div>
+              <div v-if="selectedGoalProgressSummary" class="goal-progress-summary">
+                <div><span>COMPLETION</span><strong>{{ selectedGoalProgressSummary.completionRate }}%</strong></div>
+                <div><span>QUESTS</span><strong>{{ selectedGoalProgressSummary.completedQuestCount }}/{{ selectedGoalProgressSummary.dailyQuestCount + selectedGoalProgressSummary.weeklyQuestCount }}</strong></div>
+                <div><span>XP</span><strong>{{ selectedGoalProgressSummary.earnedXp }}/{{ selectedGoalProgressSummary.availableXp }}</strong></div>
+              </div>
               <div class="panel-actions">
                 <button v-if="selectedGoal" class="text-button" type="button" @click="openGoalModal(selectedGoal)">Edit Goal</button>
                 <button v-if="selectedGoal" class="text-button" type="button" :disabled="actionPending" @click="previewDailyRecommendations(selectedGoal)">Generate Quests</button>
@@ -520,3 +535,36 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
     </v-main>
   </v-app>
 </template>
+
+<style scoped>
+.goal-progress-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: -8px 0 20px;
+}
+
+.goal-progress-summary div {
+  min-width: 0;
+  padding: 11px 10px;
+  border: 1px solid rgba(14, 15, 12, .1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .62);
+}
+
+.goal-progress-summary span {
+  display: block;
+  color: var(--muted);
+  font: 700 9px 'DM Mono', monospace;
+}
+
+.goal-progress-summary strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 2px;
+  color: var(--deep);
+  font: 900 16px 'DM Mono', monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>
