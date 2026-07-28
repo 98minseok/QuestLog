@@ -15,3 +15,8 @@ server:
 questlog:
   recommendations:
     provider: deterministic
+    external:
+      endpoint: ${QUESTLOG_RECOMMENDATIONS_EXTERNAL_ENDPOINT:}
+      api-key: ${QUESTLOG_RECOMMENDATIONS_EXTERNAL_API_KEY:}
+      provider-id: ${QUESTLOG_RECOMMENDATIONS_EXTERNAL_PROVIDER_ID:external-http}
+      max-drafts: ${QUESTLOG_RECOMMENDATIONS_EXTERNAL_MAX_DRAFTS:3}
