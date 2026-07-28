@@ -3,6 +3,7 @@ package com.als98.questlog.be.raid;
 import com.als98.questlog.be.api.ResourceNotFoundException;
 import com.als98.questlog.be.progression.CharacterProgressionRepository;
 import com.als98.questlog.be.progression.CharacterProgressionRepository.CharacterProgression;
+import com.als98.questlog.be.progression.ProgressionSourceType;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -55,7 +56,12 @@ public class RaidService {
                 raid.maxHp()
         );
         CharacterProgression progression =
-                progressionRepository.addExperience(userId, raid.xpReward());
+                progressionRepository.addExperience(
+                        userId,
+                        raid.xpReward(),
+                        ProgressionSourceType.BOSS_RAID,
+                        bossRaidId
+                );
 
         return new RaidAttemptResult(
                 attemptId,

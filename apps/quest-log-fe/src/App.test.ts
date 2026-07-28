@@ -62,6 +62,20 @@ const dashboard: Dashboard = {
     strength: 2,
     vitality: 2,
   },
+  progressionEvents: [
+    {
+      id: 21,
+      userId: 1,
+      sourceType: 'WEEKLY_QUEST',
+      sourceId: 17,
+      xpAwarded: 75,
+      totalXp: 120,
+      level: 2,
+      strength: 2,
+      vitality: 2,
+      createdAt: '2026-06-15T09:00:00Z',
+    },
+  ],
   raids: [],
   raidAttempts: [],
 }
@@ -85,6 +99,8 @@ describe('App dashboard lifecycle', () => {
     expect(fetchDashboard).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('Ship QuestLog')
     expect(wrapper.text()).toContain('Test Hero')
+    expect(wrapper.text()).toContain('XP LOG')
+    expect(wrapper.text()).toContain('WEEKLY QUEST')
   })
 
   it('archives a goal after confirmation and refreshes the dashboard', async () => {

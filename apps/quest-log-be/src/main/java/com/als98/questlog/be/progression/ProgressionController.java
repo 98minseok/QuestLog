@@ -1,8 +1,11 @@
 package com.als98.questlog.be.progression;
 
 import com.als98.questlog.be.user.CurrentUserService;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -13,10 +16,16 @@ public class ProgressionController {
 
     private final CurrentUserService currentUserService;
     private final JdbcTemplate jdbcTemplate;
+    private final CharacterProgressionRepository progressionRepository;
 
-    public ProgressionController(CurrentUserService currentUserService, JdbcTemplate jdbcTemplate) {
+    public ProgressionController(
+            CurrentUserService currentUserService,
+            JdbcTemplate jdbcTemplate,
+            CharacterProgressionRepository progressionRepository
+    ) {
         this.currentUserService = currentUserService;
         this.jdbcTemplate = jdbcTemplate;
+        this.progressionRepository = progressionRepository;
     }
 
     @GetMapping
@@ -49,5 +58,12 @@ public class ProgressionController {
                 userId
         );
         return profiles.getFirst();
+    }
+
+    @GetMapping("/progression-events")
+    public List<CharacterProgressionEvent> progressionEvents(
+            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit
+    ) {
+        return progressionRepository.findRecentEvents(currentUserService.currentUserId(), limit);
     }
 }

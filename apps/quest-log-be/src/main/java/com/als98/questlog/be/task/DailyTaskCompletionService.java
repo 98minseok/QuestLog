@@ -2,6 +2,7 @@ package com.als98.questlog.be.task;
 
 import com.als98.questlog.be.progression.CharacterProgressionRepository;
 import com.als98.questlog.be.progression.CharacterProgressionRepository.CharacterProgression;
+import com.als98.questlog.be.progression.ProgressionSourceType;
 import com.als98.questlog.be.task.DailyTaskCompletionRepository.CompletableTask;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +27,12 @@ public class DailyTaskCompletionService {
                 .orElseThrow(() -> completionRejection(userId, taskId));
 
         long completionId = repository.insertCompletion(task.id(), task.xpReward());
-        CharacterProgression progression = progressionRepository.addExperience(userId, task.xpReward());
+        CharacterProgression progression = progressionRepository.addExperience(
+                userId,
+                task.xpReward(),
+                ProgressionSourceType.DAILY_TASK,
+                task.id()
+        );
 
         return new DailyTaskCompletionResult(
                 task.id(),

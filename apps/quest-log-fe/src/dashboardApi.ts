@@ -66,6 +66,19 @@ export type CharacterProfile = {
   vitality: number
 }
 
+export type CharacterProgressionEvent = {
+  id: number
+  userId: number
+  sourceType: 'DAILY_TASK' | 'WEEKLY_QUEST' | 'BOSS_RAID'
+  sourceId: number
+  xpAwarded: number
+  totalXp: number
+  level: number
+  strength: number
+  vitality: number
+  createdAt: string
+}
+
 export type BossRaid = {
   id: number
   stage: number
@@ -91,6 +104,7 @@ export type Dashboard = {
   dailyTasks: DailyTask[]
   weeklyQuests: WeeklyQuest[]
   character: CharacterProfile
+  progressionEvents: CharacterProgressionEvent[]
   raids: BossRaid[]
   raidAttempts: RaidAttempt[]
 }

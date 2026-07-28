@@ -106,6 +106,11 @@ class DashboardServiceTests {
                 {"userId":1,"displayName":"Dev Hero","level":2,"totalXp":125,"currentLevelXp":25,
                  "xpToNextLevel":75,"strength":2,"vitality":2}
                 """);
+        expectGet("/api/be/character/progression-events?limit=8", """
+                [{"id":8,"userId":1,"sourceType":"DAILY_TASK","sourceId":2,
+                  "xpAwarded":20,"totalXp":125,"level":2,"strength":2,"vitality":2,
+                  "createdAt":"2026-06-14T10:00:00Z"}]
+                """);
         expectGet("/api/be/boss-raids", """
                 [{"id":3,"stage":1,"name":"Deadline Dragon","requiredLevel":1,"maxHp":100,
                   "xpReward":50,"active":true,"unlocked":true}]
@@ -129,6 +134,9 @@ class DashboardServiceTests {
                 .extracting(DashboardResponse.WeeklyQuest::source)
                 .isEqualTo("SYSTEM");
         assertThat(dashboard.character().totalXp()).isEqualTo(125);
+        assertThat(dashboard.progressionEvents()).singleElement()
+                .extracting(DashboardResponse.CharacterProgressionEvent::sourceType)
+                .isEqualTo("DAILY_TASK");
         assertThat(dashboard.raids()).singleElement()
                 .extracting(DashboardResponse.BossRaid::unlocked)
                 .isEqualTo(true);

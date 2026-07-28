@@ -25,6 +25,7 @@ import {
   weeklyQuestUpdatePayload,
   type BossRaid,
   type CharacterProfile,
+  type CharacterProgressionEvent,
   type DailyTask,
   type Goal,
   type RaidAttempt,
@@ -63,6 +64,7 @@ const goals = ref<Goal[]>([])
 const tasks = ref<DailyTask[]>([])
 const persistedWeeklyQuests = ref<WeeklyQuest[]>([])
 const character = ref<CharacterProfile | null>(null)
+const progressionEvents = ref<CharacterProgressionEvent[]>([])
 const raids = ref<BossRaid[]>([])
 const attempts = ref<RaidAttempt[]>([])
 const selectedGoalId = ref<number | null>(null)
@@ -107,6 +109,7 @@ const progressPercent = computed(() => character.value?.currentLevelXp ?? 0)
 const clearedRaidIds = computed(() => new Set(attempts.value.filter((attempt) => attempt.status === 'VICTORY').map((attempt) => attempt.bossRaidId)))
 const clearedRaidCount = computed(() => clearedRaidIds.value.size)
 const pendingQuestCount = computed(() => selectedGoalDailyTasks.value.filter((task) => task.status === TASK_STATUS.pending).length + weeklyQuests.value.filter((quest) => quest.status === TASK_STATUS.pending).length)
+const recentProgressionEvents = computed(() => progressionEvents.value.slice(0, 4))
 const authEnabled = computed(() => authState.mode === 'keycloak')
 const authLabel = computed(() => authState.authenticated ? authState.username || 'Authenticated user' : 'Signed out')
 const hasRecommendationDrafts = computed(() => recommendationGoalId.value === selectedGoal.value?.id && recommendationDrafts.value.length > 0)
@@ -133,6 +136,7 @@ async function loadDashboard() {
     tasks.value = dashboard.dailyTasks
     persistedWeeklyQuests.value = dashboard.weeklyQuests
     character.value = dashboard.character
+    progressionEvents.value = dashboard.progressionEvents ?? []
     raids.value = dashboard.raids
     attempts.value = dashboard.raidAttempts
     if ((selectedGoalId.value === null || !activeGoals.value.some((goal) => goal.id === selectedGoalId.value)) && activeGoals.value.length > 0) selectedGoalId.value = activeGoals.value[0]?.id ?? null
@@ -317,6 +321,14 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
                 <div><span>STR</span><strong>{{ character?.strength ?? 1 }}</strong></div>
                 <div><span>VIT</span><strong>{{ character?.vitality ?? 1 }}</strong></div>
                 <div><span>TOTAL</span><strong>{{ character?.totalXp ?? 0 }}</strong></div>
+              </div>
+              <div v-if="recentProgressionEvents.length > 0" class="progression-log">
+                <p class="eyebrow">XP LOG</p>
+                <div v-for="event in recentProgressionEvents" :key="event.id" class="progression-row">
+                  <span>{{ event.sourceType.replace('_', ' ') }}</span>
+                  <strong>+{{ event.xpAwarded }} XP</strong>
+                  <small>LV {{ event.level }} / {{ event.totalXp }} total</small>
+                </div>
               </div>
             </div>
           </aside>

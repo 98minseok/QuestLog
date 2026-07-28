@@ -336,6 +336,15 @@ class QuestLogApiTests {
                 .andExpect(jsonPath("$.totalXp").value(120))
                 .andExpect(jsonPath("$.currentLevelXp").value(20))
                 .andExpect(jsonPath("$.xpToNextLevel").value(80));
+
+        mockMvc.perform(get("/api/be/character/progression-events").param("limit", "5"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].sourceType").value("DAILY_TASK"))
+                .andExpect(jsonPath("$[0].sourceId").value(taskId))
+                .andExpect(jsonPath("$[0].xpAwarded").value(120))
+                .andExpect(jsonPath("$[0].totalXp").value(120))
+                .andExpect(jsonPath("$[0].level").value(2));
     }
 
     @Test
@@ -466,6 +475,12 @@ class QuestLogApiTests {
         mockMvc.perform(get("/api/be/character"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalXp").value(50));
+
+        mockMvc.perform(get("/api/be/character/progression-events"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].sourceType").value("BOSS_RAID"))
+                .andExpect(jsonPath("$[0].sourceId").value(bossRaidId))
+                .andExpect(jsonPath("$[0].xpAwarded").value(50));
     }
 
     @Test

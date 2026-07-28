@@ -10,6 +10,7 @@ public record DashboardResponse(
         List<DailyTask> dailyTasks,
         List<WeeklyQuest> weeklyQuests,
         CharacterProfile character,
+        List<CharacterProgressionEvent> progressionEvents,
         List<BossRaid> raids,
         List<RaidAttempt> raidAttempts
 ) {
@@ -87,6 +88,20 @@ public record DashboardResponse(
             long xpToNextLevel,
             int strength,
             int vitality
+    ) {
+    }
+
+    public record CharacterProgressionEvent(
+            long id,
+            long userId,
+            String sourceType,
+            long sourceId,
+            int xpAwarded,
+            long totalXp,
+            int level,
+            int strength,
+            int vitality,
+            OffsetDateTime createdAt
     ) {
     }
 

@@ -64,6 +64,21 @@ class DailyTaskCompletionServiceTests {
                 .containsEntry("level", 2)
                 .containsEntry("strength", 2)
                 .containsEntry("vitality", 2);
+        assertThat(jdbcTemplate.queryForMap(
+                """
+                SELECT source_type, source_id, xp_awarded, total_xp, level, strength, vitality
+                FROM character_progression_events
+                WHERE user_id = ?
+                """,
+                userId
+        ))
+                .containsEntry("source_type", "DAILY_TASK")
+                .containsEntry("source_id", taskId)
+                .containsEntry("xp_awarded", 120)
+                .containsEntry("total_xp", 120L)
+                .containsEntry("level", 2)
+                .containsEntry("strength", 2)
+                .containsEntry("vitality", 2);
     }
 
     @Test
@@ -86,6 +101,11 @@ class DailyTaskCompletionServiceTests {
                 Long.class,
                 userId
         )).isEqualTo(40L);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM character_progression_events WHERE user_id = ?",
+                Integer.class,
+                userId
+        )).isOne();
     }
 
     @Test

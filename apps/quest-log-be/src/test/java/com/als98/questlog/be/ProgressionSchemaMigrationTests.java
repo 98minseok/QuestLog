@@ -76,6 +76,23 @@ class ProgressionSchemaMigrationTests {
                 "INSERT INTO character_profiles (user_id) VALUES (?)",
                 userId
         );
+        jdbcTemplate.update(
+                """
+                INSERT INTO character_progression_events (
+                    user_id, source_type, source_id, xp_awarded,
+                    total_xp, level, strength, vitality
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                userId,
+                "DAILY_TASK",
+                taskId,
+                10,
+                10,
+                1,
+                1,
+                1
+        );
         Long bossRaidId = jdbcTemplate.queryForObject(
                 """
                 INSERT INTO boss_raids (stage, name, max_hp, xp_reward)
@@ -124,6 +141,19 @@ class ProgressionSchemaMigrationTests {
                 .containsEntry("total_xp", 0L)
                 .containsEntry("strength", 1)
                 .containsEntry("vitality", 1);
+        assertThat(jdbcTemplate.queryForMap(
+                """
+                SELECT source_type, source_id, xp_awarded, total_xp, level
+                FROM character_progression_events
+                WHERE user_id = ?
+                """,
+                userId
+        ))
+                .containsEntry("source_type", "DAILY_TASK")
+                .containsEntry("source_id", taskId)
+                .containsEntry("xp_awarded", 10)
+                .containsEntry("total_xp", 10L)
+                .containsEntry("level", 1);
         assertThat(jdbcTemplate.queryForMap(
                 "SELECT status, damage_dealt FROM raid_attempts WHERE user_id = ?",
                 userId

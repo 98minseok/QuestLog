@@ -21,6 +21,9 @@ public class DashboardService {
     private static final ParameterizedTypeReference<List<DashboardResponse.BossRaid>> RAID_LIST =
             new ParameterizedTypeReference<>() {
             };
+    private static final ParameterizedTypeReference<List<DashboardResponse.CharacterProgressionEvent>> PROGRESSION_EVENT_LIST =
+            new ParameterizedTypeReference<>() {
+            };
     private static final ParameterizedTypeReference<List<DashboardResponse.RaidAttempt>> ATTEMPT_LIST =
             new ParameterizedTypeReference<>() {
             };
@@ -54,6 +57,13 @@ public class DashboardService {
                 .uri("/api/be/character")
                 .retrieve()
                 .body(DashboardResponse.CharacterProfile.class);
+        List<DashboardResponse.CharacterProgressionEvent> progressionEvents = backendRestClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/be/character/progression-events")
+                        .queryParam("limit", 8)
+                        .build())
+                .retrieve()
+                .body(PROGRESSION_EVENT_LIST);
         List<DashboardResponse.BossRaid> raids = backendRestClient.get()
                 .uri("/api/be/boss-raids")
                 .retrieve()
@@ -69,6 +79,7 @@ public class DashboardService {
                 List.copyOf(dailyTasks),
                 List.copyOf(weeklyQuests),
                 character,
+                List.copyOf(progressionEvents),
                 List.copyOf(raids),
                 List.copyOf(raidAttempts)
         );
