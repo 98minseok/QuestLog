@@ -7,6 +7,7 @@ import {
   completeWeeklyQuestRequest,
   completeTaskRequest,
   createDailyTaskRequest,
+  createWeeklyQuestRequest,
   createGoalRequest,
   deleteTaskRequest,
   deleteWeeklyQuestRequest,
@@ -142,6 +143,26 @@ describe('dashboard API lifecycle requests', () => {
       description: 'Cover dashboard actions',
       taskDate: '2026-06-16',
       xpReward: 25,
+    })
+  })
+
+  it('creates a manual weekly quest for the requested goal and week start date', async () => {
+    mockedAxios.post.mockResolvedValue({ data: weeklyQuest })
+
+    await expect(createWeeklyQuestRequest({
+      goalId: goal.id,
+      title: 'Review shipping progress',
+      description: 'Summarize blockers and next moves',
+      weekStartDate: '2026-06-15',
+      xpReward: 75,
+    })).resolves.toBe(weeklyQuest)
+
+    expect(mockedAxios.post).toHaveBeenCalledWith('/api/bff/weekly-quests', {
+      goalId: goal.id,
+      title: 'Review shipping progress',
+      description: 'Summarize blockers and next moves',
+      weekStartDate: '2026-06-15',
+      xpReward: 75,
     })
   })
 

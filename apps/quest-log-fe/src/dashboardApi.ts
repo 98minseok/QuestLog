@@ -149,6 +149,14 @@ export type DailyTaskCreateInput = {
   xpReward: number
 }
 
+export type WeeklyQuestCreateInput = {
+  goalId: number | null
+  title: string
+  description: string
+  weekStartDate: string
+  xpReward: number
+}
+
 export function taskUpdatePayload(
   task: DailyTask,
   updates: Partial<
@@ -206,6 +214,17 @@ export async function createDailyTaskRequest(input: DailyTaskCreateInput) {
     title: input.title,
     description: input.description,
     taskDate: input.taskDate,
+    xpReward: input.xpReward,
+  })
+  return response.data
+}
+
+export async function createWeeklyQuestRequest(input: WeeklyQuestCreateInput) {
+  const response = await axios.post<WeeklyQuest>('/api/bff/weekly-quests', {
+    goalId: input.goalId,
+    title: input.title,
+    description: input.description,
+    weekStartDate: input.weekStartDate,
     xpReward: input.xpReward,
   })
   return response.data

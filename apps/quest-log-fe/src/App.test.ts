@@ -7,6 +7,7 @@ import {
   attackRaidAttemptRequest,
   completeWeeklyQuestRequest,
   createDailyTaskRequest,
+  createWeeklyQuestRequest,
   fetchDashboard,
   fetchRecommendationHistoryRequest,
   previewDailyRecommendationsRequest,
@@ -24,6 +25,7 @@ vi.mock('./dashboardApi', async (importOriginal) => {
     completeWeeklyQuestRequest: vi.fn(),
     completeTaskRequest: vi.fn(),
     createDailyTaskRequest: vi.fn(),
+    createWeeklyQuestRequest: vi.fn(),
     deleteWeeklyQuestRequest: vi.fn(),
     deleteTaskRequest: vi.fn(),
     fetchDashboard: vi.fn(),
@@ -146,6 +148,16 @@ beforeEach(() => {
     source: 'MANUAL',
     xpReward: 25,
   })
+  vi.mocked(createWeeklyQuestRequest).mockResolvedValue({
+    id: 43,
+    goalId: 7,
+    title: 'Publish the weekly demo build',
+    description: 'Cut a working build for review',
+    weekStartDate: '2026-06-15',
+    status: 'PENDING',
+    source: 'MANUAL',
+    xpReward: 125,
+  })
   vi.mocked(acceptDailyRecommendationsRequest).mockResolvedValue([])
   vi.mocked(previewDailyRecommendationsRequest).mockResolvedValue([])
   vi.spyOn(window, 'confirm').mockReturnValue(true)
@@ -218,6 +230,31 @@ describe('App dashboard lifecycle', () => {
     })
     expect(fetchDashboard).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('Manual daily quest added.')
+  })
+
+  it('creates a manual weekly quest for the selected goal and dashboard week', async () => {
+    const wrapper = mount(App)
+    await flushPromises()
+
+    const addButton = wrapper.findAll('button').find((button) => button.text() === 'Add weekly quest')
+    expect(addButton).toBeDefined()
+    await addButton!.trigger('click')
+
+    await wrapper.find('input[aria-label="New weekly quest title"]').setValue('Publish the weekly demo build')
+    await wrapper.find('input[aria-label="New weekly quest description"]').setValue('Cut a working build for review')
+    await wrapper.find('input[aria-label="New weekly quest XP reward"]').setValue(125)
+    await wrapper.find('form.weekly-composer').trigger('submit')
+    await flushPromises()
+
+    expect(createWeeklyQuestRequest).toHaveBeenCalledWith({
+      goalId: 7,
+      title: 'Publish the weekly demo build',
+      description: 'Cut a working build for review',
+      weekStartDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      xpReward: 125,
+    })
+    expect(fetchDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Manual weekly quest added.')
   })
 
   it('renders active raid progress and advances it with the staged attack helper', async () => {

@@ -15,6 +15,7 @@ import {
   completeWeeklyQuestRequest,
   completeTaskRequest,
   createDailyTaskRequest,
+  createWeeklyQuestRequest,
   createGoalRequest,
   deleteTaskRequest,
   deleteWeeklyQuestRequest,
@@ -60,7 +61,16 @@ const characterImages = {
   pathfinder: codeMageImage,
 } as const
 
+function weekStartDate(dateValue: string) {
+  const date = new Date(`${dateValue}T00:00:00`)
+  const day = date.getDay()
+  const mondayOffset = day === 0 ? -6 : 1 - day
+  date.setDate(date.getDate() + mondayOffset)
+  return date.toLocaleDateString('en-CA')
+}
+
 const today = new Date().toLocaleDateString('en-CA')
+const currentWeekStartDate = weekStartDate(today)
 const loading = ref(true)
 const actionPending = ref(false)
 const error = ref('')
@@ -86,6 +96,8 @@ const recommendationGoalId = ref<number | null>(null)
 const recommendationHistory = ref<RecommendationHistory[]>([])
 const taskComposerOpen = ref(false)
 const newTaskDraft = ref({ title: '', description: '', xpReward: 20 })
+const weeklyQuestComposerOpen = ref(false)
+const newWeeklyQuestDraft = ref({ title: '', description: '', xpReward: 80 })
 const editingWeeklyQuestId = ref<number | null>(null)
 const weeklyQuestDraft = ref({ title: '', description: '', goalId: null as number | null, xpReward: 40 })
 
@@ -140,6 +152,12 @@ const canCreateDailyTask = computed(() => Boolean(
   && Number.isInteger(newTaskDraft.value.xpReward)
   && newTaskDraft.value.xpReward >= 1
   && newTaskDraft.value.xpReward <= 1000
+))
+const canCreateWeeklyQuest = computed(() => Boolean(
+  newWeeklyQuestDraft.value.title.trim()
+  && Number.isInteger(newWeeklyQuestDraft.value.xpReward)
+  && newWeeklyQuestDraft.value.xpReward >= 1
+  && newWeeklyQuestDraft.value.xpReward <= 5000
 ))
 const canAcceptRecommendationDrafts = computed(() => selectedRecommendationDrafts.value.length > 0 && selectedRecommendationDrafts.value.every((draft) => (
   draft.title.trim()
@@ -263,6 +281,11 @@ function openTaskComposer() {
   newTaskDraft.value = { title: '', description: '', xpReward: 20 }
 }
 function closeTaskComposer() { taskComposerOpen.value = false }
+function openWeeklyQuestComposer() {
+  weeklyQuestComposerOpen.value = true
+  newWeeklyQuestDraft.value = { title: '', description: '', xpReward: 80 }
+}
+function closeWeeklyQuestComposer() { weeklyQuestComposerOpen.value = false }
 function isPendingTask(task: DailyTask) { return task.status === TASK_STATUS.pending }
 function taskSourceLabel(task: DailyTask) { return task.status === TASK_STATUS.skipped ? 'SKIPPED' : task.source === 'AI_RECOMMENDED' ? 'SYSTEM DAILY' : 'MANUAL DAILY' }
 function startWeeklyQuestEdit(quest: WeeklyQuest) { editingWeeklyQuestId.value = quest.id; weeklyQuestDraft.value = { title: quest.title, description: quest.description ?? '', goalId: quest.goalId, xpReward: quest.xpReward } }
@@ -289,6 +312,19 @@ async function createManualTask() {
     })
     closeTaskComposer()
   }, 'Manual daily quest added.')
+}
+async function createManualWeeklyQuest() {
+  if (!canCreateWeeklyQuest.value) return
+  await runAction(async () => {
+    await createWeeklyQuestRequest({
+      goalId: selectedGoal.value?.id ?? null,
+      title: newWeeklyQuestDraft.value.title,
+      description: newWeeklyQuestDraft.value.description,
+      weekStartDate: currentWeekStartDate,
+      xpReward: newWeeklyQuestDraft.value.xpReward,
+    })
+    closeWeeklyQuestComposer()
+  }, 'Manual weekly quest added.')
 }
 async function completeTask(task: DailyTask) { await runAction(async () => completeTaskRequest(task.id), (xpAwarded) => `Quest complete. +${xpAwarded} XP`) }
 async function skipPendingTask(task: DailyTask) { await runAction(async () => { await skipTaskRequest(task) }, 'Daily task skipped.') }
@@ -442,7 +478,10 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
               <div class="board-header">
                 <div><p class="eyebrow">{{ today }} / SYSTEM BOARD</p><h2>Today&apos;s quests</h2></div>
                 <div class="board-tools">
-                  <button class="text-button add-task-button" type="button" @click="openTaskComposer">Add daily quest</button>
+                  <div class="composer-buttons">
+                    <button class="text-button add-task-button" type="button" @click="openTaskComposer">Add daily quest</button>
+                    <button class="text-button add-task-button" type="button" @click="openWeeklyQuestComposer">Add weekly quest</button>
+                  </div>
                   <div class="filter-bar" aria-label="Daily task status filter">
                     <button v-for="filter in TASK_FILTERS" :key="filter" type="button" :class="{ active: taskFilter === filter }" :aria-pressed="taskFilter === filter" @click="taskFilter = filter">{{ filter }} {{ taskFilterCounts[filter] }}</button>
                   </div>
@@ -460,6 +499,18 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
                   <div class="edit-actions">
                     <button type="submit" :disabled="actionPending || !canCreateDailyTask">Add</button>
                     <button type="button" class="secondary-button" @click="closeTaskComposer">Cancel</button>
+                  </div>
+                </form>
+                <form v-if="weeklyQuestComposerOpen" class="manual-task-composer weekly-composer" @submit.prevent="createManualWeeklyQuest">
+                  <div>
+                    <p class="eyebrow">MANUAL WEEKLY</p>
+                    <input v-model="newWeeklyQuestDraft.title" maxlength="200" aria-label="New weekly quest title" placeholder="Name this week's milestone" />
+                  </div>
+                  <input v-model="newWeeklyQuestDraft.description" aria-label="New weekly quest description" placeholder="Optional success criteria" />
+                  <input v-model.number="newWeeklyQuestDraft.xpReward" class="composer-xp-input" type="number" min="1" max="5000" aria-label="New weekly quest XP reward" />
+                  <div class="edit-actions">
+                    <button type="submit" :disabled="actionPending || !canCreateWeeklyQuest">Add</button>
+                    <button type="button" class="secondary-button" @click="closeWeeklyQuestComposer">Cancel</button>
                   </div>
                 </form>
                 <div v-if="hasRecommendationDrafts" class="recommendation-review">
