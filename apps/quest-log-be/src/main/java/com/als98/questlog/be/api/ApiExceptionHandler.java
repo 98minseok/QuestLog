@@ -2,6 +2,8 @@ package com.als98.questlog.be.api;
 
 import com.als98.questlog.be.goal.GoalHasTasksException;
 import com.als98.questlog.be.raid.RaidAlreadyClearedException;
+import com.als98.questlog.be.raid.RaidAttemptNotActiveException;
+import com.als98.questlog.be.raid.RaidAttemptNotFoundException;
 import com.als98.questlog.be.raid.RaidLockedException;
 import com.als98.questlog.be.task.DailyTaskAlreadyCompletedException;
 import com.als98.questlog.be.task.DailyTaskNotDeletableException;
@@ -39,12 +41,19 @@ public class ApiExceptionHandler {
         return Map.of("message", exception.getMessage());
     }
 
+    @ExceptionHandler(RaidAttemptNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    Map<String, String> raidAttemptNotFound(RaidAttemptNotFoundException exception) {
+        return Map.of("message", exception.getMessage());
+    }
+
     @ExceptionHandler({
             DailyTaskAlreadyCompletedException.class,
             DailyTaskNotDeletableException.class,
             DailyTaskNotPendingException.class,
             GoalHasTasksException.class,
             RaidAlreadyClearedException.class,
+            RaidAttemptNotActiveException.class,
             RaidLockedException.class,
             WeeklyQuestAlreadyCompletedException.class,
             WeeklyQuestNotDeletableException.class,

@@ -190,6 +190,21 @@ public class DashboardController {
         return dashboardService.attemptRaid(bossRaidId);
     }
 
+    @PostMapping("/boss-raids/{bossRaidId}/attempts/start")
+    public DashboardResponse.RaidAttempt startRaidAttempt(@PathVariable long bossRaidId) {
+        return dashboardService.startRaidAttempt(bossRaidId);
+    }
+
+    @PostMapping("/raid-attempts/{raidAttemptId}/attack")
+    public DashboardResponse.RaidAttemptResult attackRaidAttempt(@PathVariable long raidAttemptId) {
+        return dashboardService.attackRaidAttempt(raidAttemptId);
+    }
+
+    @PostMapping("/raid-attempts/{raidAttemptId}/resolve")
+    public DashboardResponse.RaidAttemptResult resolveRaidAttempt(@PathVariable long raidAttemptId) {
+        return dashboardService.resolveRaidAttempt(raidAttemptId);
+    }
+
     public record GoalRequest(
             @NotBlank @Size(max = 200) String title,
             String description,

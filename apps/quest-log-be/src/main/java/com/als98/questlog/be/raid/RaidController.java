@@ -71,6 +71,7 @@ public class RaidController {
                         resultSet.getInt("stage"),
                         resultSet.getString("status"),
                         resultSet.getInt("damage_dealt"),
+                        resultSet.getInt("boss_remaining_hp"),
                         resultSet.getObject("started_at", java.time.OffsetDateTime.class),
                         resultSet.getObject("completed_at", java.time.OffsetDateTime.class)
                 ),
@@ -81,5 +82,20 @@ public class RaidController {
     @PostMapping("/boss-raids/{bossRaidId}/attempts")
     public RaidAttemptResult attempt(@PathVariable long bossRaidId) {
         return raidService.attempt(currentUserService.currentUserId(), bossRaidId);
+    }
+
+    @PostMapping("/boss-raids/{bossRaidId}/attempts/start")
+    public RaidAttempt startAttempt(@PathVariable long bossRaidId) {
+        return raidService.startAttempt(currentUserService.currentUserId(), bossRaidId);
+    }
+
+    @PostMapping("/raid-attempts/{raidAttemptId}/attack")
+    public RaidAttemptResult attack(@PathVariable long raidAttemptId) {
+        return raidService.attack(currentUserService.currentUserId(), raidAttemptId);
+    }
+
+    @PostMapping("/raid-attempts/{raidAttemptId}/resolve")
+    public RaidAttemptResult resolve(@PathVariable long raidAttemptId) {
+        return raidService.resolve(currentUserService.currentUserId(), raidAttemptId);
     }
 }

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   acceptDailyRecommendationsRequest,
   archiveGoalRequest,
+  attackRaidAttemptRequest,
   completeWeeklyQuestRequest,
   completeTaskRequest,
   createDailyTaskRequest,
@@ -13,8 +14,10 @@ import {
   fetchRecommendationHistoryRequest,
   previewDailyRecommendationsRequest,
   recommendDailyTasksRequest,
+  resolveRaidAttemptRequest,
   skipTaskRequest,
   skipWeeklyQuestRequest,
+  startRaidAttemptRequest,
   taskUpdatePayload,
   type DailyTask,
   type Goal,
@@ -268,6 +271,40 @@ describe('dashboard API lifecycle requests', () => {
     await deleteWeeklyQuestRequest(weeklyQuest.id)
 
     expect(mockedAxios.delete).toHaveBeenCalledWith('/api/bff/weekly-quests/17')
+  })
+
+  it('starts, attacks, and resolves staged raid attempts through the BFF', async () => {
+    const started = {
+      id: 23,
+      bossRaidId: 3,
+      bossName: 'Slime Sovereign',
+      stage: 1,
+      status: 'STARTED' as const,
+      damageDealt: 0,
+      bossRemainingHp: 100,
+    }
+    const attacked = {
+      attemptId: 23,
+      bossRaidId: 3,
+      bossName: 'Slime Sovereign',
+      stage: 1,
+      status: 'IN_PROGRESS' as const,
+      damageDealt: 70,
+      bossRemainingHp: 30,
+      xpAwarded: 0,
+    }
+    const resolved = { ...attacked, status: 'FAILED' as const }
+    mockedAxios.post
+      .mockResolvedValueOnce({ data: started })
+      .mockResolvedValueOnce({ data: attacked })
+      .mockResolvedValueOnce({ data: resolved })
+
+    await expect(startRaidAttemptRequest(3)).resolves.toEqual(started)
+    await expect(attackRaidAttemptRequest(23)).resolves.toEqual(attacked)
+    await expect(resolveRaidAttemptRequest(23)).resolves.toEqual(resolved)
+    expect(mockedAxios.post).toHaveBeenNthCalledWith(1, '/api/bff/boss-raids/3/attempts/start')
+    expect(mockedAxios.post).toHaveBeenNthCalledWith(2, '/api/bff/raid-attempts/23/attack')
+    expect(mockedAxios.post).toHaveBeenNthCalledWith(3, '/api/bff/raid-attempts/23/resolve')
   })
 })
 

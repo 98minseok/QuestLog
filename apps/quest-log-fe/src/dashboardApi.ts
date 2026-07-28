@@ -106,8 +106,20 @@ export type RaidAttempt = {
   bossRaidId: number
   bossName: string
   stage: number
-  status: string
+  status: 'STARTED' | 'IN_PROGRESS' | 'CLEARED' | 'FAILED'
   damageDealt: number
+  bossRemainingHp: number
+}
+
+export type RaidAttemptResult = {
+  attemptId: number
+  bossRaidId: number
+  bossName: string
+  stage: number
+  status: 'STARTED' | 'IN_PROGRESS' | 'CLEARED' | 'FAILED'
+  damageDealt: number
+  bossRemainingHp: number
+  xpAwarded: number
 }
 
 export type Dashboard = {
@@ -280,4 +292,25 @@ export async function skipWeeklyQuestRequest(weeklyQuest: WeeklyQuest) {
 
 export async function deleteWeeklyQuestRequest(weeklyQuestId: number) {
   await axios.delete(`/api/bff/weekly-quests/${weeklyQuestId}`)
+}
+
+export async function startRaidAttemptRequest(bossRaidId: number) {
+  const response = await axios.post<RaidAttempt>(
+    `/api/bff/boss-raids/${bossRaidId}/attempts/start`,
+  )
+  return response.data
+}
+
+export async function attackRaidAttemptRequest(raidAttemptId: number) {
+  const response = await axios.post<RaidAttemptResult>(
+    `/api/bff/raid-attempts/${raidAttemptId}/attack`,
+  )
+  return response.data
+}
+
+export async function resolveRaidAttemptRequest(raidAttemptId: number) {
+  const response = await axios.post<RaidAttemptResult>(
+    `/api/bff/raid-attempts/${raidAttemptId}/resolve`,
+  )
+  return response.data
 }

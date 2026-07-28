@@ -7,6 +7,7 @@ public record RaidAttemptResult(
         int stage,
         String status,
         int damageDealt,
+        int bossRemainingHp,
         int xpAwarded,
         long totalXp,
         int level,

@@ -100,6 +100,27 @@ public class DashboardService {
                 .body(DashboardResponse.RaidAttemptResult.class);
     }
 
+    public DashboardResponse.RaidAttempt startRaidAttempt(long bossRaidId) {
+        return backendRestClient.post()
+                .uri("/api/be/boss-raids/{bossRaidId}/attempts/start", bossRaidId)
+                .retrieve()
+                .body(DashboardResponse.RaidAttempt.class);
+    }
+
+    public DashboardResponse.RaidAttemptResult attackRaidAttempt(long raidAttemptId) {
+        return backendRestClient.post()
+                .uri("/api/be/raid-attempts/{raidAttemptId}/attack", raidAttemptId)
+                .retrieve()
+                .body(DashboardResponse.RaidAttemptResult.class);
+    }
+
+    public DashboardResponse.RaidAttemptResult resolveRaidAttempt(long raidAttemptId) {
+        return backendRestClient.post()
+                .uri("/api/be/raid-attempts/{raidAttemptId}/resolve", raidAttemptId)
+                .retrieve()
+                .body(DashboardResponse.RaidAttemptResult.class);
+    }
+
     public DashboardResponse.Goal createGoal(DashboardController.GoalRequest request) {
         LocalDate taskDate = request.taskDate() == null ? LocalDate.now() : request.taskDate();
         DashboardResponse.Goal goal = backendRestClient.post()

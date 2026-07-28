@@ -255,7 +255,7 @@ class ProgressionSchemaMigrationTests {
                 """,
                 userId,
                 bossRaidId,
-                "VICTORY"
+                "CLEARED"
         )).isInstanceOf(DataIntegrityViolationException.class);
     }
 

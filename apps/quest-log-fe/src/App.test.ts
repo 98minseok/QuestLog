@@ -4,11 +4,14 @@ import App from './App.vue'
 import {
   acceptDailyRecommendationsRequest,
   archiveGoalRequest,
+  attackRaidAttemptRequest,
   completeWeeklyQuestRequest,
   createDailyTaskRequest,
   fetchDashboard,
   fetchRecommendationHistoryRequest,
   previewDailyRecommendationsRequest,
+  resolveRaidAttemptRequest,
+  startRaidAttemptRequest,
   type Dashboard,
 } from './dashboardApi'
 
@@ -17,6 +20,7 @@ vi.mock('./dashboardApi', async (importOriginal) => {
   return {
     ...actual,
     archiveGoalRequest: vi.fn(),
+    attackRaidAttemptRequest: vi.fn(),
     completeWeeklyQuestRequest: vi.fn(),
     completeTaskRequest: vi.fn(),
     createDailyTaskRequest: vi.fn(),
@@ -26,8 +30,10 @@ vi.mock('./dashboardApi', async (importOriginal) => {
     fetchRecommendationHistoryRequest: vi.fn(),
     acceptDailyRecommendationsRequest: vi.fn(),
     previewDailyRecommendationsRequest: vi.fn(),
+    resolveRaidAttemptRequest: vi.fn(),
     skipWeeklyQuestRequest: vi.fn(),
     skipTaskRequest: vi.fn(),
+    startRaidAttemptRequest: vi.fn(),
   }
 })
 
@@ -101,6 +107,35 @@ beforeEach(() => {
   vi.mocked(fetchRecommendationHistoryRequest).mockResolvedValue([])
   vi.mocked(archiveGoalRequest).mockResolvedValue()
   vi.mocked(completeWeeklyQuestRequest).mockResolvedValue(75)
+  vi.mocked(startRaidAttemptRequest).mockResolvedValue({
+    id: 51,
+    bossRaidId: 3,
+    bossName: 'Slime Sovereign',
+    stage: 1,
+    status: 'STARTED',
+    damageDealt: 0,
+    bossRemainingHp: 100,
+  })
+  vi.mocked(attackRaidAttemptRequest).mockResolvedValue({
+    attemptId: 51,
+    bossRaidId: 3,
+    bossName: 'Slime Sovereign',
+    stage: 1,
+    status: 'CLEARED',
+    damageDealt: 100,
+    bossRemainingHp: 0,
+    xpAwarded: 50,
+  })
+  vi.mocked(resolveRaidAttemptRequest).mockResolvedValue({
+    attemptId: 51,
+    bossRaidId: 3,
+    bossName: 'Slime Sovereign',
+    stage: 1,
+    status: 'FAILED',
+    damageDealt: 70,
+    bossRemainingHp: 30,
+    xpAwarded: 0,
+  })
   vi.mocked(createDailyTaskRequest).mockResolvedValue({
     id: 31,
     goalId: 7,
@@ -183,6 +218,46 @@ describe('App dashboard lifecycle', () => {
     })
     expect(fetchDashboard).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('Manual daily quest added.')
+  })
+
+  it('renders active raid progress and advances it with the staged attack helper', async () => {
+    vi.mocked(fetchDashboard).mockResolvedValue({
+      ...dashboard,
+      raids: [
+        {
+          id: 3,
+          stage: 1,
+          name: 'Slime Sovereign',
+          requiredLevel: 1,
+          maxHp: 100,
+          xpReward: 50,
+          unlocked: true,
+        },
+      ],
+      raidAttempts: [
+        {
+          id: 51,
+          bossRaidId: 3,
+          bossName: 'Slime Sovereign',
+          stage: 1,
+          status: 'IN_PROGRESS',
+          damageDealt: 70,
+          bossRemainingHp: 30,
+        },
+      ],
+    })
+    const wrapper = mount(App)
+    await flushPromises()
+
+    await wrapper.findAll('button').find((button) => button.text() === 'Boss raid')!.trigger('click')
+    expect(wrapper.text()).toContain('30 HP remains / 70 damage dealt')
+
+    await wrapper.findAll('button').find((button) => button.text() === 'Attack')!.trigger('click')
+    await flushPromises()
+
+    expect(attackRaidAttemptRequest).toHaveBeenCalledWith(51)
+    expect(fetchDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Slime Sovereign cleared. +50 XP')
   })
 
   it('previews, edits, rejects, and accepts selected daily quest recommendations', async () => {

@@ -69,8 +69,9 @@ class DashboardServiceTests {
                           "bossRaidId":3,
                           "bossName":"Deadline Dragon",
                           "stage":1,
-                          "status":"VICTORY",
+                          "status":"CLEARED",
                           "damageDealt":100,
+                          "bossRemainingHp":0,
                           "xpAwarded":50,
                           "totalXp":50,
                           "level":1,
@@ -122,7 +123,7 @@ class DashboardServiceTests {
                 """);
         expectGet("/api/be/raid-attempts", """
                 [{"id":4,"bossRaidId":3,"bossName":"Deadline Dragon","stage":1,"status":"CLEARED",
-                  "damageDealt":100,"startedAt":"2026-06-14T10:00:00Z",
+                  "damageDealt":100,"bossRemainingHp":0,"startedAt":"2026-06-14T10:00:00Z",
                   "completedAt":"2026-06-14T10:05:00Z"}]
                 """);
 
@@ -163,8 +164,9 @@ class DashboardServiceTests {
                           "bossRaidId":3,
                           "bossName":"Deadline Dragon",
                           "stage":1,
-                          "status":"VICTORY",
+                          "status":"CLEARED",
                           "damageDealt":100,
+                          "bossRemainingHp":0,
                           "xpAwarded":50,
                           "totalXp":175,
                           "level":2,
@@ -175,9 +177,76 @@ class DashboardServiceTests {
 
         DashboardResponse.RaidAttemptResult result = dashboardService.attemptRaid(3);
 
-        assertThat(result.status()).isEqualTo("VICTORY");
+        assertThat(result.status()).isEqualTo("CLEARED");
         assertThat(result.xpAwarded()).isEqualTo(50);
         assertThat(result.totalXp()).isEqualTo(175);
+        backend.verify();
+    }
+
+    @Test
+    void proxiesStagedRaidLifecycle() {
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/boss-raids/3/attempts/start"))
+                .andExpect(method(POST))
+                .andExpect(headerDoesNotExist("Authorization"))
+                .andRespond(withSuccess("""
+                        {
+                          "id":7,
+                          "bossRaidId":3,
+                          "bossName":"Deadline Dragon",
+                          "stage":1,
+                          "status":"STARTED",
+                          "damageDealt":0,
+                          "bossRemainingHp":100,
+                          "startedAt":"2026-06-14T10:00:00Z",
+                          "completedAt":null
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/raid-attempts/7/attack"))
+                .andExpect(method(POST))
+                .andExpect(headerDoesNotExist("Authorization"))
+                .andRespond(withSuccess("""
+                        {
+                          "attemptId":7,
+                          "bossRaidId":3,
+                          "bossName":"Deadline Dragon",
+                          "stage":1,
+                          "status":"IN_PROGRESS",
+                          "damageDealt":70,
+                          "bossRemainingHp":30,
+                          "xpAwarded":0,
+                          "totalXp":125,
+                          "level":2,
+                          "strength":2,
+                          "vitality":2
+                        }
+                        """, MediaType.APPLICATION_JSON));
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/raid-attempts/7/resolve"))
+                .andExpect(method(POST))
+                .andExpect(headerDoesNotExist("Authorization"))
+                .andRespond(withSuccess("""
+                        {
+                          "attemptId":7,
+                          "bossRaidId":3,
+                          "bossName":"Deadline Dragon",
+                          "stage":1,
+                          "status":"FAILED",
+                          "damageDealt":70,
+                          "bossRemainingHp":30,
+                          "xpAwarded":0,
+                          "totalXp":125,
+                          "level":2,
+                          "strength":2,
+                          "vitality":2
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        DashboardResponse.RaidAttempt started = dashboardService.startRaidAttempt(3);
+        DashboardResponse.RaidAttemptResult attacked = dashboardService.attackRaidAttempt(7);
+        DashboardResponse.RaidAttemptResult resolved = dashboardService.resolveRaidAttempt(7);
+
+        assertThat(started.status()).isEqualTo("STARTED");
+        assertThat(attacked.bossRemainingHp()).isEqualTo(30);
+        assertThat(resolved.status()).isEqualTo("FAILED");
         backend.verify();
     }
 

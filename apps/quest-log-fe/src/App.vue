@@ -11,6 +11,7 @@ import bossBattleImage from './assets/bosses/forest-guardian-battle.png'
 import {
   acceptDailyRecommendationsRequest,
   archiveGoalRequest,
+  attackRaidAttemptRequest,
   completeWeeklyQuestRequest,
   completeTaskRequest,
   createDailyTaskRequest,
@@ -20,8 +21,10 @@ import {
   fetchDashboard,
   fetchRecommendationHistoryRequest,
   previewDailyRecommendationsRequest,
+  resolveRaidAttemptRequest,
   skipWeeklyQuestRequest,
   skipTaskRequest,
+  startRaidAttemptRequest,
   taskUpdatePayload,
   weeklyQuestUpdatePayload,
   type BossRaid,
@@ -118,8 +121,13 @@ function goalProgressLabel(goalId: number) {
   return `${summary.completedQuestCount}/${summary.dailyQuestCount + summary.weeklyQuestCount} done`
 }
 const progressPercent = computed(() => character.value?.currentLevelXp ?? 0)
-const clearedRaidIds = computed(() => new Set(attempts.value.filter((attempt) => attempt.status === 'VICTORY').map((attempt) => attempt.bossRaidId)))
+const clearedRaidIds = computed(() => new Set(attempts.value.filter((attempt) => attempt.status === 'CLEARED').map((attempt) => attempt.bossRaidId)))
 const clearedRaidCount = computed(() => clearedRaidIds.value.size)
+const activeAttemptByRaidId = computed(() => new Map(
+  attempts.value
+    .filter((attempt) => attempt.status === 'STARTED' || attempt.status === 'IN_PROGRESS')
+    .map((attempt) => [attempt.bossRaidId, attempt]),
+))
 const pendingQuestCount = computed(() => selectedGoalDailyTasks.value.filter((task) => task.status === TASK_STATUS.pending).length + weeklyQuests.value.filter((quest) => quest.status === TASK_STATUS.pending).length)
 const recentProgressionEvents = computed(() => progressionEvents.value.slice(0, 4))
 const authEnabled = computed(() => authState.mode === 'keycloak')
@@ -297,7 +305,19 @@ async function completeWeeklyQuest(quest: WeeklyQuest) { await runAction(async (
 async function skipPendingWeeklyQuest(quest: WeeklyQuest) { await runAction(async () => { await skipWeeklyQuestRequest(quest) }, 'Weekly quest skipped.') }
 async function deletePendingWeeklyQuest(weeklyQuestId: number) { await runAction(async () => { await deleteWeeklyQuestRequest(weeklyQuestId) }, 'Weekly quest deleted.') }
 async function confirmDeletePendingWeeklyQuest(quest: WeeklyQuest) { await confirmAction(`Delete "${quest.title}"?`, () => deletePendingWeeklyQuest(quest.id)) }
-async function attemptRaid(raid: BossRaid) { await runAction(async () => (await axios.post<{ xpAwarded: number }>(`/api/bff/boss-raids/${raid.id}/attempts`)).data.xpAwarded, (xpAwarded) => `${raid.name} cleared. +${xpAwarded} XP`) }
+async function startRaid(raid: BossRaid) {
+  await runAction(async () => startRaidAttemptRequest(raid.id), `${raid.name} started.`)
+}
+async function attackRaid(attempt: RaidAttempt) {
+  await runAction(async () => attackRaidAttemptRequest(attempt.id), (result) => (
+    result.status === 'CLEARED'
+      ? `${result.bossName} cleared. +${result.xpAwarded} XP`
+      : `${result.bossName} hit. ${result.bossRemainingHp} HP remains.`
+  ))
+}
+async function resolveRaid(attempt: RaidAttempt) {
+  await runAction(async () => resolveRaidAttemptRequest(attempt.id), (result) => `${result.bossName} attempt ended as ${result.status}.`)
+}
 
 async function runAction<T>(action: () => Promise<T>, successMessage: string | ((result: T) => string)) {
   actionPending.value = true
@@ -513,7 +533,28 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
                 <div class="battle-hud"><span>HERO LV {{ character?.level ?? 1 }}</span><span>{{ clearedRaidCount }} CLEARED</span></div>
               </div>
             </div>
-            <div class="raid-list"><div v-for="raid in raids" :key="raid.id" class="raid-card"><img :src="bossImage" alt="Boss raid" /><div class="stage">0{{ raid.stage }}</div><div class="raid-copy"><strong>{{ raid.name }}</strong><p>Level {{ raid.requiredLevel }} / {{ raid.maxHp }} HP / +{{ raid.xpReward }} XP</p><div class="boss-hp"><span :style="{ width: `${raid.unlocked ? 72 : 28}%` }"></span></div></div><button v-if="raid.unlocked && !clearedRaidIds.has(raid.id)" class="raid-button" :disabled="actionPending" @click="attemptRaid(raid)">Enter raid</button><span v-else :class="['raid-state', clearedRaidIds.has(raid.id) ? 'cleared' : 'locked']">{{ clearedRaidIds.has(raid.id) ? 'CLEARED' : 'LOCKED' }}</span></div></div>
+            <div class="raid-list">
+              <div v-for="raid in raids" :key="raid.id" class="raid-card">
+                <img :src="bossImage" alt="Boss raid" />
+                <div class="stage">0{{ raid.stage }}</div>
+                <div class="raid-copy">
+                  <strong>{{ raid.name }}</strong>
+                  <p>Level {{ raid.requiredLevel }} / {{ raid.maxHp }} HP / +{{ raid.xpReward }} XP</p>
+                  <div class="boss-hp">
+                    <span :style="{ width: `${activeAttemptByRaidId.get(raid.id) ? Math.max(0, Math.round((activeAttemptByRaidId.get(raid.id)!.bossRemainingHp / raid.maxHp) * 100)) : raid.unlocked ? 100 : 28}%` }"></span>
+                  </div>
+                  <small v-if="activeAttemptByRaidId.get(raid.id)" class="raid-progress">
+                    {{ activeAttemptByRaidId.get(raid.id)!.bossRemainingHp }} HP remains / {{ activeAttemptByRaidId.get(raid.id)!.damageDealt }} damage dealt
+                  </small>
+                </div>
+                <div v-if="raid.unlocked && activeAttemptByRaidId.get(raid.id)" class="raid-actions">
+                  <button class="raid-button" :disabled="actionPending" @click="attackRaid(activeAttemptByRaidId.get(raid.id)!)">Attack</button>
+                  <button class="raid-button secondary" :disabled="actionPending" @click="resolveRaid(activeAttemptByRaidId.get(raid.id)!)">Withdraw</button>
+                </div>
+                <button v-else-if="raid.unlocked && !clearedRaidIds.has(raid.id)" class="raid-button" :disabled="actionPending" @click="startRaid(raid)">Start raid</button>
+                <span v-else :class="['raid-state', clearedRaidIds.has(raid.id) ? 'cleared' : 'locked']">{{ clearedRaidIds.has(raid.id) ? 'CLEARED' : 'LOCKED' }}</span>
+              </div>
+            </div>
           </section>
         </template>
 
@@ -566,5 +607,56 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
   font: 900 16px 'DM Mono', monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.raid-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.raid-button.secondary {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, .72);
+  box-shadow: none;
+}
+
+.raid-progress {
+  display: block;
+  margin-top: 7px;
+  color: var(--deep);
+  font: 800 10px 'DM Mono', monospace;
+}
+
+.boss-hp {
+  overflow: hidden;
+  width: min(100%, 260px);
+  height: 9px;
+  margin-top: 9px;
+  border-radius: 999px;
+  background: #edf6e8;
+}
+
+.boss-hp span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #65b82f, var(--green));
+  transition: width .28s ease;
+}
+
+@media (max-width: 700px) {
+  .raid-actions {
+    width: 100%;
+  }
+
+  .raid-actions .raid-button {
+    flex: 1 1 140px;
+  }
+
+  .boss-hp {
+    width: 100%;
+  }
 }
 </style>

@@ -9,6 +9,7 @@ public record RaidAttempt(
         int stage,
         String status,
         int damageDealt,
+        int bossRemainingHp,
         OffsetDateTime startedAt,
         OffsetDateTime completedAt
 ) {

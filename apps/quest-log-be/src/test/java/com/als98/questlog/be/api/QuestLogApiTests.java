@@ -528,8 +528,9 @@ class QuestLogApiTests {
         mockMvc.perform(post("/api/be/boss-raids/{bossRaidId}/attempts", bossRaidId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.bossName").value("Slime Sovereign"))
-                .andExpect(jsonPath("$.status").value("VICTORY"))
+                .andExpect(jsonPath("$.status").value("CLEARED"))
                 .andExpect(jsonPath("$.damageDealt").value(100))
+                .andExpect(jsonPath("$.bossRemainingHp").value(0))
                 .andExpect(jsonPath("$.xpAwarded").value(50))
                 .andExpect(jsonPath("$.totalXp").value(50));
 
@@ -541,8 +542,9 @@ class QuestLogApiTests {
         mockMvc.perform(get("/api/be/raid-attempts"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].status").value("VICTORY"))
-                .andExpect(jsonPath("$[0].damageDealt").value(100));
+                .andExpect(jsonPath("$[0].status").value("CLEARED"))
+                .andExpect(jsonPath("$[0].damageDealt").value(100))
+                .andExpect(jsonPath("$[0].bossRemainingHp").value(0));
 
         mockMvc.perform(get("/api/be/character"))
                 .andExpect(status().isOk())
@@ -553,6 +555,47 @@ class QuestLogApiTests {
                 .andExpect(jsonPath("$[0].sourceType").value("BOSS_RAID"))
                 .andExpect(jsonPath("$[0].sourceId").value(bossRaidId))
                 .andExpect(jsonPath("$[0].xpAwarded").value(50));
+    }
+
+    @Test
+    void supportsStagedRaidStartAttackAndFailedResolve() throws Exception {
+        long bossRaidId = jdbcTemplate.queryForObject(
+                "SELECT id FROM boss_raids WHERE stage = 1",
+                Long.class
+        );
+
+        MvcResult started = mockMvc.perform(post(
+                        "/api/be/boss-raids/{bossRaidId}/attempts/start",
+                        bossRaidId
+                ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.bossName").value("Slime Sovereign"))
+                .andExpect(jsonPath("$.status").value("STARTED"))
+                .andExpect(jsonPath("$.damageDealt").value(0))
+                .andExpect(jsonPath("$.bossRemainingHp").value(100))
+                .andReturn();
+        long raidAttemptId = objectMapper.readTree(started.getResponse().getContentAsString())
+                .get("id").asLong();
+
+        mockMvc.perform(post("/api/be/raid-attempts/{raidAttemptId}/attack", raidAttemptId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.damageDealt").value(70))
+                .andExpect(jsonPath("$.bossRemainingHp").value(30))
+                .andExpect(jsonPath("$.xpAwarded").value(0));
+
+        mockMvc.perform(post("/api/be/raid-attempts/{raidAttemptId}/resolve", raidAttemptId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FAILED"))
+                .andExpect(jsonPath("$.damageDealt").value(70))
+                .andExpect(jsonPath("$.bossRemainingHp").value(30))
+                .andExpect(jsonPath("$.xpAwarded").value(0));
+
+        mockMvc.perform(post("/api/be/raid-attempts/{raidAttemptId}/attack", raidAttemptId))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.message")
+                        .value("Raid attempt " + raidAttemptId
+                                + " cannot be advanced from status FAILED"));
     }
 
     @Test
