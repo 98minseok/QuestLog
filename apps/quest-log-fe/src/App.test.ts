@@ -174,7 +174,12 @@ describe('App dashboard lifecycle', () => {
     expect(wrapper.text()).toContain('XP LOG')
     expect(wrapper.text()).toContain('WEEKLY QUEST')
     expect(wrapper.text()).toContain('COMPLETION')
+    expect(wrapper.text()).toContain('ROUTE PROGRESS')
     expect(wrapper.text()).toContain('25/100')
+
+    const routeProgress = wrapper.find('[aria-label="Selected goal quest completion"]')
+    expect(routeProgress.exists()).toBe(true)
+    expect(routeProgress.find('[role="meter"]').attributes('aria-valuenow')).toBe('50')
   })
 
   it('reloads dashboard data when the quest date changes', async () => {

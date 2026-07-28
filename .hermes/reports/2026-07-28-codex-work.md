@@ -128,3 +128,38 @@
 
 - Full backend integration tests were not rerun because Docker/Testcontainers availability was already blocked in this session.
 - Next useful step is a progression policy extraction or Docker-backed verification of pending staged raid/progression features.
+
+---
+
+## Additional autonomous run - route progress meter
+
+### Summary
+
+- Added an accessible current-goal route progress meter to the Quest focus panel.
+- The meter uses the existing BFF dashboard `completionRate` summary and clamps the visual value to 0-100%.
+- Updated the verified feature registry from 38 to 39 without adding placeholder counts.
+
+### Files changed
+
+- `apps/quest-log-fe/src/App.vue`
+- `apps/quest-log-fe/src/App.test.ts`
+- `.hermes/reports/FEATURE_REGISTRY.md`
+- `.hermes/reports/2026-07-28-codex-work.md`
+
+### Verification
+
+- `cd C:/hermes/QuestLog/apps/quest-log-fe && npm test -- --run App.test.ts`
+  - Passed: 1 test file, 9 tests.
+- `cd C:/hermes/QuestLog/apps/quest-log-fe && npm test`
+  - Passed: 4 test files, 35 tests.
+- `cd C:/hermes/QuestLog/apps/quest-log-fe && npm run build`
+  - Passed: Vue type-check and Vite production build.
+- `cd C:/hermes/QuestLog/apps/quest-log-fe && npm run dev -- --host 127.0.0.1 --port 5173`
+  - Started successfully and returned HTTP 200 from `http://127.0.0.1:5173`.
+  - Stopped after the browser availability check.
+
+### Blockers and next steps
+
+- Browser visual verification was attempted, but the in-app Browser connector reported that `iab` was unavailable in this session.
+- Backend and BFF tests were not rerun because this increment only changed frontend rendering over already available dashboard data.
+- Docker-backed backend verification remains the gating step for the pending progression and staged raid items.

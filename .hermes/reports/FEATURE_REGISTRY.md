@@ -42,10 +42,11 @@ This registry counts only concrete QuestLog features that were actually implemen
 - [x] Frontend dashboard date selector reloads quests for a selected day and applies that date to generated and manual quest creation.
 - [x] Frontend Boss tab shows recent raid attempt history with outcome, damage, remaining HP, and attempt time.
 - [x] Backend raid combat damage is isolated in a tested deterministic policy used by staged raid attacks.
+- [x] Frontend current-goal panel renders an accessible route progress meter from the dashboard completion summary.
 
 ## Count
 
-Current verified feature count: 38 / 1000
+Current verified feature count: 39 / 1000
 
 ## Pending verification
 

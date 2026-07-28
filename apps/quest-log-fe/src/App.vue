@@ -108,6 +108,10 @@ const taskGoalOptions = computed(() => goals.value.filter((goal) => goal.status 
 const weeklyQuestGoalOptions = computed(() => goals.value.filter((goal) => goal.status === GOAL_STATUS.active || goal.id === weeklyQuestDraft.value.goalId))
 const progressSummaryByGoalId = computed(() => new Map(goalProgressSummaries.value.map((summary) => [summary.goalId, summary])))
 const selectedGoalProgressSummary = computed(() => selectedGoal.value ? progressSummaryByGoalId.value.get(selectedGoal.value.id) ?? null : null)
+const selectedGoalCompletionPercent = computed(() => {
+  const rate = selectedGoalProgressSummary.value?.completionRate ?? 0
+  return Math.min(100, Math.max(0, Math.round(rate)))
+})
 const selectedGoalDailyTasks = computed(() => selectedGoal.value ? tasks.value.filter((task) => task.goalId === selectedGoal.value?.id) : tasks.value)
 const weeklyQuests = computed(() => selectedGoal.value ? persistedWeeklyQuests.value.filter((quest) => quest.goalId === selectedGoal.value?.id) : persistedWeeklyQuests.value)
 const filteredDailyTasks = computed(() => taskFilter.value === 'ALL' ? selectedGoalDailyTasks.value : selectedGoalDailyTasks.value.filter((task) => task.status === taskFilter.value))
@@ -504,6 +508,15 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
                 <div><span>QUESTS</span><strong>{{ selectedGoalProgressSummary.completedQuestCount }}/{{ selectedGoalProgressSummary.dailyQuestCount + selectedGoalProgressSummary.weeklyQuestCount }}</strong></div>
                 <div><span>XP</span><strong>{{ selectedGoalProgressSummary.earnedXp }}/{{ selectedGoalProgressSummary.availableXp }}</strong></div>
               </div>
+              <div v-if="selectedGoalProgressSummary" class="route-progress" aria-label="Selected goal quest completion">
+                <div class="route-progress-label">
+                  <span>ROUTE PROGRESS</span>
+                  <strong>{{ selectedGoalCompletionPercent }}%</strong>
+                </div>
+                <div class="route-progress-track" role="meter" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="selectedGoalCompletionPercent">
+                  <span :style="{ width: `${selectedGoalCompletionPercent}%` }"></span>
+                </div>
+              </div>
               <div class="panel-actions">
                 <button v-if="selectedGoal" class="text-button" type="button" @click="openGoalModal(selectedGoal)">Edit Goal</button>
                 <button v-if="selectedGoal" class="text-button" type="button" :disabled="actionPending" @click="previewDailyRecommendations(selectedGoal)">Generate Quests</button>
@@ -755,6 +768,41 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
   font: 900 16px 'DM Mono', monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.route-progress {
+  display: grid;
+  gap: 8px;
+  margin: -8px 0 20px;
+}
+
+.route-progress-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--deep);
+}
+
+.route-progress-label span,
+.route-progress-label strong {
+  font: 900 10px 'DM Mono', monospace;
+}
+
+.route-progress-track {
+  overflow: hidden;
+  height: 12px;
+  border: 1px solid rgba(14, 15, 12, .1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .72);
+}
+
+.route-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #65b82f, var(--green));
+  transition: width .28s ease;
 }
 
 .raid-actions {
