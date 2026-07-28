@@ -296,11 +296,11 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
         <section class="hero-panel">
           <div class="hero-copy-block">
             <p class="eyebrow">AUTO-GENERATED RPG GOALS</p>
-            <h1>목표 하나가 오늘의 던전이 됩니다.</h1>
-            <p class="hero-copy">Goal을 설정하면 시스템이 일일 퀘스트를 생성하고, 주간 퀘스트와 보스 루트까지 한 화면에서 관리합니다.</p>
+            <h1>Turn each goal into today&apos;s quest route.</h1>
+            <p class="hero-copy">Set a goal and QuestLog prepares daily quests, weekly milestones, character progress, and boss raids in one dashboard.</p>
             <div class="hero-actions">
-              <button class="primary-action" type="button" @click="openGoalModal()">새 목표 설정</button>
-              <button v-if="selectedGoal" class="ghost-action" type="button" @click="openGoalModal(selectedGoal)">현재 목표 수정</button>
+              <button class="primary-action" type="button" @click="openGoalModal()">Set goal</button>
+              <button v-if="selectedGoal" class="ghost-action" type="button" @click="openGoalModal(selectedGoal)">Edit current goal</button>
             </div>
             <div class="metric-row">
               <div><span>ACTIVE GOALS</span><strong>{{ activeGoals.length }}</strong></div>
@@ -314,7 +314,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
             <div class="character-copy">
               <span class="level-badge">LV {{ character?.level ?? 1 }}</span>
               <h2>{{ currentJob.label }}</h2>
-              <p>{{ selectedGoal?.title ?? '목표를 설정하면 직업이 정해집니다.' }}</p>
+              <p>{{ selectedGoal?.title ?? 'Set a goal to define your class.' }}</p>
               <div class="xp-label"><span>{{ character?.displayName ?? 'Quest Hero' }}</span><strong>{{ character?.currentLevelXp ?? 0 }} / 100 XP</strong></div>
               <v-progress-linear :model-value="progressPercent" color="#9fe870" bg-color="#d8ead1" height="11" rounded />
               <div class="stat-row">
@@ -346,20 +346,20 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
             <button v-for="goal in activeGoals" :key="goal.id" type="button" class="goal-chip" :class="{ active: selectedGoal?.id === goal.id }" @click="selectGoal(goal.id)">
               <span>{{ goal.title }}</span><small>{{ deriveCharacterJob(goal).label }}</small>
             </button>
-            <button type="button" class="goal-chip add-goal" @click="openGoalModal()"><span>+ 목표 추가</span><small>자동 퀘스트 생성</small></button>
+            <button type="button" class="goal-chip add-goal" @click="openGoalModal()"><span>+ Add goal</span><small>Auto-generate quests</small></button>
           </nav>
 
           <nav class="tab-bar" aria-label="QuestLog tabs">
             <button v-for="tab in TABS" :key="tab" type="button" :class="{ active: activeTab === tab }" @click="activeTab = tab">
-              {{ tab === 'QUESTS' ? '퀘스트 보드' : '보스 레이드' }}
+              {{ tab === 'QUESTS' ? 'Quest board' : 'Boss raid' }}
             </button>
           </nav>
 
           <section v-if="activeTab === 'QUESTS'" class="tab-panel quest-layout">
             <aside class="focus-panel">
               <p class="eyebrow">CURRENT ROUTE</p>
-              <h2>{{ selectedGoal?.title ?? 'Goal을 먼저 설정하세요' }}</h2>
-              <p>{{ selectedGoal?.description ?? '목표가 있어야 일일/주간 퀘스트가 자동 생성됩니다.' }}</p>
+              <h2>{{ selectedGoal?.title ?? 'Set a goal first.' }}</h2>
+              <p>{{ selectedGoal?.description ?? 'Once a goal exists, QuestLog can prepare daily and weekly quests for it.' }}</p>
               <div class="focus-job"><span>{{ currentJob.label }}</span><small>{{ currentJob.subtitle }}</small></div>
               <div class="panel-actions">
                 <button v-if="selectedGoal" class="text-button" type="button" @click="openGoalModal(selectedGoal)">Edit Goal</button>
@@ -378,7 +378,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
 
             <main class="quest-board">
               <div class="board-header">
-                <div><p class="eyebrow">{{ today }} / SYSTEM BOARD</p><h2>오늘의 퀘스트</h2></div>
+                <div><p class="eyebrow">{{ today }} / SYSTEM BOARD</p><h2>Today&apos;s quests</h2></div>
                 <div class="filter-bar" aria-label="Daily task status filter">
                   <button v-for="filter in TASK_FILTERS" :key="filter" type="button" :class="{ active: taskFilter === filter }" :aria-pressed="taskFilter === filter" @click="taskFilter = filter">{{ filter }} {{ taskFilterCounts[filter] }}</button>
                 </div>
@@ -416,7 +416,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
                       <div class="edit-actions"><button type="submit" :disabled="actionPending || !taskDraft.title.trim() || !Number.isInteger(taskDraft.xpReward) || taskDraft.xpReward < 1 || taskDraft.xpReward > 1000">Save</button><button type="button" class="secondary-button" @click="cancelTaskEdit">Cancel</button></div>
                     </form>
                     <template v-else>
-                      <button class="complete-button" :disabled="actionPending || entry.task.status !== TASK_STATUS.pending" :aria-label="`Complete ${entry.task.title}`" @click="completeTask(entry.task)"><span v-if="entry.task.status === TASK_STATUS.completed">✓</span></button>
+                      <button class="complete-button" :disabled="actionPending || entry.task.status !== TASK_STATUS.pending" :aria-label="`Complete ${entry.task.title}`" @click="completeTask(entry.task)"><span v-if="entry.task.status === TASK_STATUS.completed">OK</span><span v-else>D</span></button>
                       <div class="quest-copy"><strong>{{ entry.task.title }}</strong><span>{{ taskSourceLabel(entry.task) }}</span><p>{{ entry.task.description }}</p></div>
                       <b>+{{ entry.task.xpReward }} XP</b>
                       <button v-if="isPendingTask(entry.task)" class="text-button muted" :disabled="actionPending" @click="skipPendingTask(entry.task)">Skip</button>
@@ -441,7 +441,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
                     </template>
                   </template>
                 </div>
-                <p v-if="questEntries.length === 0" class="empty-copy">선택한 목표에 표시할 퀘스트가 없습니다.</p>
+                <p v-if="questEntries.length === 0" class="empty-copy">No quests are available for the selected goal yet.</p>
               </div>
             </main>
           </section>
@@ -451,24 +451,24 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
               <img :src="bossBattleImage" alt="Forest guardian battle arena" />
               <div class="boss-overlay">
                 <p class="eyebrow">LIVE RAID ENCOUNTER</p>
-                <h2>연초록 숲의 수호자</h2>
-                <p>퀘스트를 완료해 성장하고, 잠금 해제된 보스를 격파하세요.</p>
+                <h2>Guardian of the greenwood</h2>
+                <p>Complete quests, grow your character, and clear unlocked boss stages.</p>
                 <div class="battle-hud"><span>HERO LV {{ character?.level ?? 1 }}</span><span>{{ clearedRaidCount }} CLEARED</span></div>
               </div>
             </div>
-            <div class="raid-list"><div v-for="raid in raids" :key="raid.id" class="raid-card"><img :src="bossImage" alt="Boss raid" /><div class="stage">0{{ raid.stage }}</div><div class="raid-copy"><strong>{{ raid.name }}</strong><p>Level {{ raid.requiredLevel }} · {{ raid.maxHp }} HP · +{{ raid.xpReward }} XP</p><div class="boss-hp"><span :style="{ width: `${raid.unlocked ? 72 : 28}%` }"></span></div></div><button v-if="raid.unlocked && !clearedRaidIds.has(raid.id)" class="raid-button" :disabled="actionPending" @click="attemptRaid(raid)">Enter raid</button><span v-else :class="['raid-state', clearedRaidIds.has(raid.id) ? 'cleared' : 'locked']">{{ clearedRaidIds.has(raid.id) ? 'CLEARED' : 'LOCKED' }}</span></div></div>
+            <div class="raid-list"><div v-for="raid in raids" :key="raid.id" class="raid-card"><img :src="bossImage" alt="Boss raid" /><div class="stage">0{{ raid.stage }}</div><div class="raid-copy"><strong>{{ raid.name }}</strong><p>Level {{ raid.requiredLevel }} / {{ raid.maxHp }} HP / +{{ raid.xpReward }} XP</p><div class="boss-hp"><span :style="{ width: `${raid.unlocked ? 72 : 28}%` }"></span></div></div><button v-if="raid.unlocked && !clearedRaidIds.has(raid.id)" class="raid-button" :disabled="actionPending" @click="attemptRaid(raid)">Enter raid</button><span v-else :class="['raid-state', clearedRaidIds.has(raid.id) ? 'cleared' : 'locked']">{{ clearedRaidIds.has(raid.id) ? 'CLEARED' : 'LOCKED' }}</span></div></div>
           </section>
         </template>
 
-        <footer>{{ authEnabled ? `Keycloak · ${authLabel}` : 'Development mode · temporary dev-user identity' }}</footer>
+        <footer>{{ authEnabled ? `Keycloak / ${authLabel}` : 'Development mode / temporary dev-user identity' }}</footer>
       </div>
 
       <div v-if="goalModalOpen" class="modal-backdrop" role="presentation" @click.self="closeGoalModal">
         <section class="goal-modal" role="dialog" aria-modal="true" aria-labelledby="goal-modal-title">
-          <div class="panel-heading"><div><p class="eyebrow">GOAL SETUP</p><h2 id="goal-modal-title">{{ editingGoalId ? '목표 수정' : '새 목표 설정' }}</h2></div><button class="icon-button" type="button" aria-label="Close goal popup" @click="closeGoalModal">×</button></div>
+          <div class="panel-heading"><div><p class="eyebrow">GOAL SETUP</p><h2 id="goal-modal-title">{{ editingGoalId ? 'Edit goal' : 'Set a new goal' }}</h2></div><button class="icon-button" type="button" aria-label="Close goal popup" @click="closeGoalModal">x</button></div>
           <form class="goal-form" @submit.prevent="saveGoalFromModal">
-            <label>Goal title<input v-model="goalDraft.title" placeholder="예: QuestLog 출시, SQLP 자격증, 체력 강화" maxlength="200" /></label>
-            <label>Description<input v-model="goalDraft.description" placeholder="목표 설명을 입력하면 직업과 퀘스트가 더 잘 맞춰집니다." /></label>
+            <label>Goal title<input v-model="goalDraft.title" placeholder="Ship QuestLog, pass SQLP, build strength" maxlength="200" /></label>
+            <label>Description<input v-model="goalDraft.description" placeholder="Add context so classes and quests fit the goal." /></label>
             <label>Target date<input v-model="goalDraft.targetDate" type="date" /></label>
             <div class="modal-preview" :class="`job-${deriveCharacterJob(goalDraft).key}`"><img :src="characterImageFor(goalDraft)" :alt="`${deriveCharacterJob(goalDraft).label} character preview`" /><div><strong>{{ deriveCharacterJob(goalDraft).label }}</strong><span>{{ deriveCharacterJob(goalDraft).subtitle }}</span></div></div>
             <div class="edit-actions modal-actions"><button type="submit" :disabled="actionPending || !goalDraft.title.trim()">{{ editingGoalId ? 'Save goal' : 'Create goal + auto quests' }}</button><button type="button" class="secondary-button" @click="closeGoalModal">Cancel</button></div>

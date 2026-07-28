@@ -93,6 +93,7 @@ public class DashboardService {
     }
 
     public DashboardResponse.Goal createGoal(DashboardController.GoalRequest request) {
+        LocalDate taskDate = request.taskDate() == null ? LocalDate.now() : request.taskDate();
         DashboardResponse.Goal goal = backendRestClient.post()
                 .uri("/api/be/goals")
                 .body(new BackendGoalRequest(
@@ -106,8 +107,16 @@ public class DashboardService {
         backendRestClient.post()
                 .uri(uriBuilder -> uriBuilder
                         .path("/api/be/goals/{goalId}/recommendations")
-                        .queryParam("taskDate", request.taskDate() == null ? LocalDate.now() : request.taskDate())
+                        .queryParam("taskDate", taskDate)
                         .build(goal.id()))
+                .retrieve()
+                .toBodilessEntity();
+        backendRestClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/api/be/weekly-quests/recommendations")
+                        .queryParam("goalId", goal.id())
+                        .queryParam("weekStartDate", taskDate.with(java.time.DayOfWeek.MONDAY))
+                        .build())
                 .retrieve()
                 .toBodilessEntity();
         return goal;

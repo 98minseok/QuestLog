@@ -1,6 +1,8 @@
 package com.als98.questlog.be.weekly;
 
 import com.als98.questlog.be.api.ResourceNotFoundException;
+import com.als98.questlog.be.goal.Goal;
+import com.als98.questlog.be.goal.GoalService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -15,9 +17,11 @@ public class WeeklyQuestService {
 
     private static final List<String> STATUSES = List.of("PENDING", "COMPLETED", "SKIPPED");
 
+    private final GoalService goalService;
     private final JdbcTemplate jdbcTemplate;
 
-    public WeeklyQuestService(JdbcTemplate jdbcTemplate) {
+    public WeeklyQuestService(GoalService goalService, JdbcTemplate jdbcTemplate) {
+        this.goalService = goalService;
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -47,6 +51,38 @@ public class WeeklyQuestService {
                 userId
         ).stream().findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Weekly quest", weeklyQuestId));
+    }
+
+    @Transactional
+    public List<WeeklyQuest> recommendForGoal(long userId, long goalId, LocalDate weekStartDate) {
+        Goal goal = goalService.find(userId, goalId);
+        List<WeeklyQuest> existing = findSystemWeeklyQuests(userId, goalId, weekStartDate);
+        if (!existing.isEmpty()) {
+            return existing;
+        }
+
+        List<WeeklyQuestDraft> drafts = List.of(
+                new WeeklyQuestDraft(
+                        trimToMaxLength("Define the weekly milestone for " + goal.title(), 200),
+                        "Choose one measurable outcome that would make this week successful.",
+                        75
+                ),
+                new WeeklyQuestDraft(
+                        trimToMaxLength("Review progress and risks for " + goal.title(), 200),
+                        "Summarize completed work, blockers, and the next concrete adjustment.",
+                        60
+                )
+        );
+        drafts.forEach(draft -> create(
+                userId,
+                goalId,
+                draft.title(),
+                draft.description(),
+                weekStartDate,
+                draft.xpReward(),
+                "SYSTEM"
+        ));
+        return findSystemWeeklyQuests(userId, goalId, weekStartDate);
     }
 
     @Transactional
@@ -149,6 +185,23 @@ public class WeeklyQuestService {
         throw new IllegalArgumentException(displayStatus + " weekly quests cannot be edited");
     }
 
+    private List<WeeklyQuest> findSystemWeeklyQuests(long userId, long goalId, LocalDate weekStartDate) {
+        return jdbcTemplate.query(
+                """
+                SELECT * FROM weekly_quests
+                WHERE user_id = ?
+                  AND goal_id = ?
+                  AND week_start_date = ?
+                  AND source = 'SYSTEM'
+                ORDER BY created_at, id
+                """,
+                WeeklyQuestService::mapQuest,
+                userId,
+                goalId,
+                weekStartDate
+        );
+    }
+
     private void validateGoalOwnership(long userId, Long goalId) {
         if (goalId == null) {
             return;
@@ -181,5 +234,12 @@ public class WeeklyQuestService {
 
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static String trimToMaxLength(String value, int maxLength) {
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+
+    private record WeeklyQuestDraft(String title, String description, int xpReward) {
     }
 }

@@ -215,7 +215,7 @@ class DashboardServiceTests {
     }
 
     @Test
-    void createsGoalAndRequestsDailyRecommendationsForTaskDate() {
+    void createsGoalAndRequestsDailyAndWeeklyRecommendationsForTaskDate() {
         DashboardController.GoalRequest request = new DashboardController.GoalRequest(
                 "Study Korean",
                 "Build a daily grammar habit",
@@ -256,6 +256,22 @@ class DashboardServiceTests {
                           "status":"PENDING",
                           "source":"AI_RECOMMENDED",
                           "xpReward":10,
+                          "createdAt":"2026-06-16T09:00:00Z",
+                          "updatedAt":"2026-06-16T09:00:00Z"
+                        }]
+                        """, MediaType.APPLICATION_JSON));
+        backend.expect(once(), requestTo("http://localhost:8081/api/be/weekly-quests/recommendations?goalId=9&weekStartDate=2026-06-15"))
+                .andExpect(method(POST))
+                .andRespond(withSuccess("""
+                        [{
+                          "id":21,
+                          "goalId":9,
+                          "title":"Define the weekly milestone for Study Korean",
+                          "description":"Choose one measurable outcome that would make this week successful.",
+                          "weekStartDate":"2026-06-15",
+                          "status":"PENDING",
+                          "source":"SYSTEM",
+                          "xpReward":75,
                           "createdAt":"2026-06-16T09:00:00Z",
                           "updatedAt":"2026-06-16T09:00:00Z"
                         }]

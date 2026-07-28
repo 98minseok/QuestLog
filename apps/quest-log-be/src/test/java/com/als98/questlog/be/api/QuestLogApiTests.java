@@ -394,6 +394,42 @@ class QuestLogApiTests {
     }
 
     @Test
+    void weeklyRecommendationsCreateSystemQuestsOncePerGoalAndWeek() throws Exception {
+        long goalId = createGoal("Prepare investor update");
+
+        MvcResult first = mockMvc.perform(post("/api/be/weekly-quests/recommendations")
+                        .param("goalId", Long.toString(goalId))
+                        .param("weekStartDate", "2026-06-15"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].goalId").value(goalId))
+                .andExpect(jsonPath("$[0].weekStartDate").value("2026-06-15"))
+                .andExpect(jsonPath("$[0].source").value("SYSTEM"))
+                .andExpect(jsonPath("$[0].title")
+                        .value("Define the weekly milestone for Prepare investor update"))
+                .andReturn();
+
+        MvcResult second = mockMvc.perform(post("/api/be/weekly-quests/recommendations")
+                        .param("goalId", Long.toString(goalId))
+                        .param("weekStartDate", "2026-06-15"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andReturn();
+
+        JsonNode firstBody = objectMapper.readTree(first.getResponse().getContentAsString());
+        JsonNode secondBody = objectMapper.readTree(second.getResponse().getContentAsString());
+        assertThat(secondBody.get(0).get("id").asLong()).isEqualTo(firstBody.get(0).get("id").asLong());
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT count(*) FROM weekly_quests
+                WHERE goal_id = ? AND week_start_date = '2026-06-15' AND source = 'SYSTEM'
+                """,
+                Integer.class,
+                goalId
+        )).isEqualTo(2);
+    }
+
+    @Test
     void keepsAuthenticatedUsersWeeklyQuestsIsolated() throws Exception {
         MvcResult createdGoal = mockMvc.perform(post("/api/be/goals")
                         .with(jwt().jwt(token -> token.subject("weekly-alice")))

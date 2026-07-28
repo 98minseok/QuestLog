@@ -54,6 +54,22 @@ public class WeeklyQuestController {
         return weeklyQuestService.find(currentUserService.currentUserId(), weeklyQuestId);
     }
 
+    @PostMapping("/recommendations")
+    public List<WeeklyQuest> recommend(
+            @RequestParam long goalId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate weekStartDate
+    ) {
+        LocalDate effectiveWeekStartDate = weekStartDate == null
+                ? LocalDate.now().with(java.time.DayOfWeek.MONDAY)
+                : weekStartDate;
+        return weeklyQuestService.recommendForGoal(
+                currentUserService.currentUserId(),
+                goalId,
+                effectiveWeekStartDate
+        );
+    }
+
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public WeeklyQuest create(@Valid @RequestBody WeeklyQuestRequest request) {
