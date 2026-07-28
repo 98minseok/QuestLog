@@ -5,6 +5,7 @@ import {
   archiveGoalRequest,
   completeWeeklyQuestRequest,
   completeTaskRequest,
+  createDailyTaskRequest,
   createGoalRequest,
   deleteTaskRequest,
   deleteWeeklyQuestRequest,
@@ -119,6 +120,26 @@ describe('dashboard API lifecycle requests', () => {
       undefined,
       { params: { taskDate: '2026-06-16' } },
     )
+  })
+
+  it('creates a manual daily task for the requested goal and date', async () => {
+    mockedAxios.post.mockResolvedValue({ data: task })
+
+    await expect(createDailyTaskRequest({
+      goalId: goal.id,
+      title: 'Add lifecycle tests',
+      description: 'Cover dashboard actions',
+      taskDate: '2026-06-16',
+      xpReward: 25,
+    })).resolves.toBe(task)
+
+    expect(mockedAxios.post).toHaveBeenCalledWith('/api/bff/daily-tasks', {
+      goalId: goal.id,
+      title: 'Add lifecycle tests',
+      description: 'Cover dashboard actions',
+      taskDate: '2026-06-16',
+      xpReward: 25,
+    })
   })
 
   it('previews daily recommendation drafts without creating tasks', async () => {

@@ -5,6 +5,7 @@ import {
   acceptDailyRecommendationsRequest,
   archiveGoalRequest,
   completeWeeklyQuestRequest,
+  createDailyTaskRequest,
   fetchDashboard,
   fetchRecommendationHistoryRequest,
   previewDailyRecommendationsRequest,
@@ -18,6 +19,7 @@ vi.mock('./dashboardApi', async (importOriginal) => {
     archiveGoalRequest: vi.fn(),
     completeWeeklyQuestRequest: vi.fn(),
     completeTaskRequest: vi.fn(),
+    createDailyTaskRequest: vi.fn(),
     deleteWeeklyQuestRequest: vi.fn(),
     deleteTaskRequest: vi.fn(),
     fetchDashboard: vi.fn(),
@@ -86,6 +88,16 @@ beforeEach(() => {
   vi.mocked(fetchRecommendationHistoryRequest).mockResolvedValue([])
   vi.mocked(archiveGoalRequest).mockResolvedValue()
   vi.mocked(completeWeeklyQuestRequest).mockResolvedValue(75)
+  vi.mocked(createDailyTaskRequest).mockResolvedValue({
+    id: 31,
+    goalId: 7,
+    title: 'Draft release notes',
+    description: 'Summarize completed work',
+    taskDate: '2026-06-15',
+    status: 'PENDING',
+    source: 'MANUAL',
+    xpReward: 25,
+  })
   vi.mocked(acceptDailyRecommendationsRequest).mockResolvedValue([])
   vi.mocked(previewDailyRecommendationsRequest).mockResolvedValue([])
   vi.spyOn(window, 'confirm').mockReturnValue(true)
@@ -131,6 +143,31 @@ describe('App dashboard lifecycle', () => {
     expect(completeWeeklyQuestRequest).toHaveBeenCalledWith(17)
     expect(fetchDashboard).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('Weekly quest complete. +75 XP')
+  })
+
+  it('creates a manual daily quest for the selected goal', async () => {
+    const wrapper = mount(App)
+    await flushPromises()
+
+    const addButton = wrapper.findAll('button').find((button) => button.text() === 'Add daily quest')
+    expect(addButton).toBeDefined()
+    await addButton!.trigger('click')
+
+    await wrapper.find('input[aria-label="New daily quest title"]').setValue('Draft release notes')
+    await wrapper.find('input[aria-label="New daily quest description"]').setValue('Summarize completed work')
+    await wrapper.find('input[aria-label="New daily quest XP reward"]').setValue(25)
+    await wrapper.find('form.manual-task-composer').trigger('submit')
+    await flushPromises()
+
+    expect(createDailyTaskRequest).toHaveBeenCalledWith({
+      goalId: 7,
+      title: 'Draft release notes',
+      description: 'Summarize completed work',
+      taskDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      xpReward: 25,
+    })
+    expect(fetchDashboard).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Manual daily quest added.')
   })
 
   it('previews, edits, rejects, and accepts selected daily quest recommendations', async () => {

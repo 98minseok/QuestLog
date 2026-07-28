@@ -13,6 +13,7 @@ import {
   archiveGoalRequest,
   completeWeeklyQuestRequest,
   completeTaskRequest,
+  createDailyTaskRequest,
   createGoalRequest,
   deleteTaskRequest,
   deleteWeeklyQuestRequest,
@@ -78,6 +79,8 @@ const taskDraft = ref({ title: '', description: '', goalId: null as number | nul
 const recommendationDrafts = ref<ReviewDraft[]>([])
 const recommendationGoalId = ref<number | null>(null)
 const recommendationHistory = ref<RecommendationHistory[]>([])
+const taskComposerOpen = ref(false)
+const newTaskDraft = ref({ title: '', description: '', xpReward: 20 })
 const editingWeeklyQuestId = ref<number | null>(null)
 const weeklyQuestDraft = ref({ title: '', description: '', goalId: null as number | null, xpReward: 40 })
 
@@ -115,6 +118,12 @@ const authLabel = computed(() => authState.authenticated ? authState.username ||
 const hasRecommendationDrafts = computed(() => recommendationGoalId.value === selectedGoal.value?.id && recommendationDrafts.value.length > 0)
 const selectedGoalRecommendationHistory = computed(() => selectedGoal.value ? recommendationHistory.value.filter((item) => item.goalId === selectedGoal.value?.id) : recommendationHistory.value)
 const selectedRecommendationDrafts = computed(() => recommendationDrafts.value.filter((draft) => draft.selected))
+const canCreateDailyTask = computed(() => Boolean(
+  newTaskDraft.value.title.trim()
+  && Number.isInteger(newTaskDraft.value.xpReward)
+  && newTaskDraft.value.xpReward >= 1
+  && newTaskDraft.value.xpReward <= 1000
+))
 const canAcceptRecommendationDrafts = computed(() => selectedRecommendationDrafts.value.length > 0 && selectedRecommendationDrafts.value.every((draft) => (
   draft.title.trim()
   && Number.isInteger(draft.xpReward)
@@ -231,6 +240,11 @@ async function selectGoal(goalId: number) {
 
 function startTaskEdit(task: DailyTask) { editingTaskId.value = task.id; taskDraft.value = { title: task.title, description: task.description ?? '', goalId: task.goalId, xpReward: task.xpReward } }
 function cancelTaskEdit() { editingTaskId.value = null }
+function openTaskComposer() {
+  taskComposerOpen.value = true
+  newTaskDraft.value = { title: '', description: '', xpReward: 20 }
+}
+function closeTaskComposer() { taskComposerOpen.value = false }
 function isPendingTask(task: DailyTask) { return task.status === TASK_STATUS.pending }
 function taskSourceLabel(task: DailyTask) { return task.status === TASK_STATUS.skipped ? 'SKIPPED' : task.source === 'AI_RECOMMENDED' ? 'SYSTEM DAILY' : 'MANUAL DAILY' }
 function startWeeklyQuestEdit(quest: WeeklyQuest) { editingWeeklyQuestId.value = quest.id; weeklyQuestDraft.value = { title: quest.title, description: quest.description ?? '', goalId: quest.goalId, xpReward: quest.xpReward } }
@@ -244,6 +258,19 @@ async function saveTask(task: DailyTask) {
     await axios.put(`/api/bff/daily-tasks/${task.id}`, taskUpdatePayload(task, { goalId: taskDraft.value.goalId, title: taskDraft.value.title, description: taskDraft.value.description, xpReward: taskDraft.value.xpReward }))
     editingTaskId.value = null
   }, 'Daily task updated.')
+}
+async function createManualTask() {
+  if (!canCreateDailyTask.value) return
+  await runAction(async () => {
+    await createDailyTaskRequest({
+      goalId: selectedGoal.value?.id ?? null,
+      title: newTaskDraft.value.title,
+      description: newTaskDraft.value.description,
+      taskDate: today,
+      xpReward: newTaskDraft.value.xpReward,
+    })
+    closeTaskComposer()
+  }, 'Manual daily quest added.')
 }
 async function completeTask(task: DailyTask) { await runAction(async () => completeTaskRequest(task.id), (xpAwarded) => `Quest complete. +${xpAwarded} XP`) }
 async function skipPendingTask(task: DailyTask) { await runAction(async () => { await skipTaskRequest(task) }, 'Daily task skipped.') }
@@ -379,12 +406,27 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
             <main class="quest-board">
               <div class="board-header">
                 <div><p class="eyebrow">{{ today }} / SYSTEM BOARD</p><h2>Today&apos;s quests</h2></div>
-                <div class="filter-bar" aria-label="Daily task status filter">
-                  <button v-for="filter in TASK_FILTERS" :key="filter" type="button" :class="{ active: taskFilter === filter }" :aria-pressed="taskFilter === filter" @click="taskFilter = filter">{{ filter }} {{ taskFilterCounts[filter] }}</button>
+                <div class="board-tools">
+                  <button class="text-button add-task-button" type="button" @click="openTaskComposer">Add daily quest</button>
+                  <div class="filter-bar" aria-label="Daily task status filter">
+                    <button v-for="filter in TASK_FILTERS" :key="filter" type="button" :class="{ active: taskFilter === filter }" :aria-pressed="taskFilter === filter" @click="taskFilter = filter">{{ filter }} {{ taskFilterCounts[filter] }}</button>
+                  </div>
                 </div>
               </div>
 
               <div class="quest-list">
+                <form v-if="taskComposerOpen" class="manual-task-composer" @submit.prevent="createManualTask">
+                  <div>
+                    <p class="eyebrow">MANUAL DAILY</p>
+                    <input v-model="newTaskDraft.title" maxlength="200" aria-label="New daily quest title" placeholder="Name the next concrete action" />
+                  </div>
+                  <input v-model="newTaskDraft.description" aria-label="New daily quest description" placeholder="Optional context" />
+                  <input v-model.number="newTaskDraft.xpReward" class="composer-xp-input" type="number" min="1" max="1000" aria-label="New daily quest XP reward" />
+                  <div class="edit-actions">
+                    <button type="submit" :disabled="actionPending || !canCreateDailyTask">Add</button>
+                    <button type="button" class="secondary-button" @click="closeTaskComposer">Cancel</button>
+                  </div>
+                </form>
                 <div v-if="hasRecommendationDrafts" class="recommendation-review">
                   <div class="review-heading">
                     <div><p class="eyebrow">RECOMMENDATION REVIEW</p><h3>Preview daily quests before creation</h3></div>

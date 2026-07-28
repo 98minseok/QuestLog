@@ -116,6 +116,14 @@ export type GoalCreateInput = {
   taskDate: string
 }
 
+export type DailyTaskCreateInput = {
+  goalId: number | null
+  title: string
+  description: string
+  taskDate: string
+  xpReward: number
+}
+
 export function taskUpdatePayload(
   task: DailyTask,
   updates: Partial<
@@ -163,6 +171,17 @@ export async function createGoalRequest(input: GoalCreateInput) {
     description: input.description,
     targetDate: input.targetDate ?? null,
     taskDate: input.taskDate,
+  })
+  return response.data
+}
+
+export async function createDailyTaskRequest(input: DailyTaskCreateInput) {
+  const response = await axios.post<DailyTask>('/api/bff/daily-tasks', {
+    goalId: input.goalId,
+    title: input.title,
+    description: input.description,
+    taskDate: input.taskDate,
+    xpReward: input.xpReward,
   })
   return response.data
 }
