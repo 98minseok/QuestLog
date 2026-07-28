@@ -39,10 +39,11 @@ This registry counts only concrete QuestLog features that were actually implemen
 - [x] Backend external recommendation provider fails safely when configuration is missing or the upstream returns invalid drafts.
 - [x] Frontend Quest board manual daily quest composer creates a BFF-persisted task for the selected goal and dashboard date.
 - [x] Frontend Quest board manual weekly quest composer creates a BFF-persisted weekly milestone for the selected goal and dashboard week.
+- [x] Frontend dashboard date selector reloads quests for a selected day and applies that date to generated and manual quest creation.
 
 ## Count
 
-Current verified feature count: 35 / 1000
+Current verified feature count: 36 / 1000
 
 ## Pending verification
 

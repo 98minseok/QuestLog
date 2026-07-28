@@ -177,6 +177,18 @@ describe('App dashboard lifecycle', () => {
     expect(wrapper.text()).toContain('25/100')
   })
 
+  it('reloads dashboard data when the quest date changes', async () => {
+    const wrapper = mount(App)
+    await flushPromises()
+
+    await wrapper.find('input[aria-label="Dashboard quest date"]').setValue('2026-06-16')
+    await flushPromises()
+
+    expect(fetchDashboard).toHaveBeenLastCalledWith('2026-06-16')
+    expect(wrapper.text()).toContain('2026-06-16 / WEEK OF 2026-06-15')
+    expect(wrapper.text()).toContain('Selected day quests')
+  })
+
   it('archives a goal after confirmation and refreshes the dashboard', async () => {
     const wrapper = mount(App)
     await flushPromises()
@@ -211,6 +223,9 @@ describe('App dashboard lifecycle', () => {
     const wrapper = mount(App)
     await flushPromises()
 
+    await wrapper.find('input[aria-label="Dashboard quest date"]').setValue('2026-06-16')
+    await flushPromises()
+
     const addButton = wrapper.findAll('button').find((button) => button.text() === 'Add daily quest')
     expect(addButton).toBeDefined()
     await addButton!.trigger('click')
@@ -225,15 +240,18 @@ describe('App dashboard lifecycle', () => {
       goalId: 7,
       title: 'Draft release notes',
       description: 'Summarize completed work',
-      taskDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      taskDate: '2026-06-16',
       xpReward: 25,
     })
-    expect(fetchDashboard).toHaveBeenCalledTimes(2)
+    expect(fetchDashboard).toHaveBeenCalledTimes(3)
     expect(wrapper.text()).toContain('Manual daily quest added.')
   })
 
   it('creates a manual weekly quest for the selected goal and dashboard week', async () => {
     const wrapper = mount(App)
+    await flushPromises()
+
+    await wrapper.find('input[aria-label="Dashboard quest date"]').setValue('2026-06-18')
     await flushPromises()
 
     const addButton = wrapper.findAll('button').find((button) => button.text() === 'Add weekly quest')
@@ -250,10 +268,10 @@ describe('App dashboard lifecycle', () => {
       goalId: 7,
       title: 'Publish the weekly demo build',
       description: 'Cut a working build for review',
-      weekStartDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      weekStartDate: '2026-06-15',
       xpReward: 125,
     })
-    expect(fetchDashboard).toHaveBeenCalledTimes(2)
+    expect(fetchDashboard).toHaveBeenCalledTimes(3)
     expect(wrapper.text()).toContain('Manual weekly quest added.')
   })
 

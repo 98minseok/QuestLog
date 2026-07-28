@@ -70,7 +70,8 @@ function weekStartDate(dateValue: string) {
 }
 
 const today = new Date().toLocaleDateString('en-CA')
-const currentWeekStartDate = weekStartDate(today)
+const selectedTaskDate = ref(today)
+const currentWeekStartDate = computed(() => weekStartDate(selectedTaskDate.value))
 const loading = ref(true)
 const actionPending = ref(false)
 const error = ref('')
@@ -165,17 +166,35 @@ const canAcceptRecommendationDrafts = computed(() => selectedRecommendationDraft
   && draft.xpReward >= 1
   && draft.xpReward <= 1000
 )))
+const isTodaySelected = computed(() => selectedTaskDate.value === today)
 
 function apiMessage(caught: unknown) {
   if (axios.isAxiosError(caught)) return caught.response?.data?.message ?? 'The QuestLog backend is unavailable.'
   return 'An unexpected error occurred.'
 }
 
+function shiftedDate(dateValue: string, days: number) {
+  const date = new Date(`${dateValue}T00:00:00`)
+  date.setDate(date.getDate() + days)
+  return date.toLocaleDateString('en-CA')
+}
+
+async function moveTaskDate(days: number) {
+  selectedTaskDate.value = shiftedDate(selectedTaskDate.value, days)
+  await loadDashboard()
+}
+
+async function selectToday() {
+  if (isTodaySelected.value) return
+  selectedTaskDate.value = today
+  await loadDashboard()
+}
+
 async function loadDashboard() {
   loading.value = true
   error.value = ''
   try {
-    const dashboard = await fetchDashboard(today)
+    const dashboard = await fetchDashboard(selectedTaskDate.value)
     goals.value = dashboard.goals
     goalProgressSummaries.value = dashboard.goalProgressSummaries ?? []
     tasks.value = dashboard.dailyTasks
@@ -220,7 +239,7 @@ async function saveGoalFromModal() {
     return
   }
   await runAction(async () => {
-    const createdGoal = await createGoalRequest({ title: goalDraft.value.title, description: goalDraft.value.description || 'System goal created from the setup popup', targetDate: goalDraft.value.targetDate || null, taskDate: today })
+    const createdGoal = await createGoalRequest({ title: goalDraft.value.title, description: goalDraft.value.description || 'System goal created from the setup popup', targetDate: goalDraft.value.targetDate || null, taskDate: selectedTaskDate.value })
     selectedGoalId.value = createdGoal.id
     closeGoalModal()
   }, 'Goal set. Daily quests were generated and weekly quests are ready.')
@@ -240,7 +259,7 @@ function reviewDrafts(drafts: RecommendationDraft[]) {
 }
 async function previewDailyRecommendations(goal: Goal) {
   await runAction(async () => {
-    const drafts = await previewDailyRecommendationsRequest(goal.id, today)
+    const drafts = await previewDailyRecommendationsRequest(goal.id, selectedTaskDate.value)
     recommendationGoalId.value = goal.id
     recommendationDrafts.value = reviewDrafts(drafts)
     return drafts
@@ -307,7 +326,7 @@ async function createManualTask() {
       goalId: selectedGoal.value?.id ?? null,
       title: newTaskDraft.value.title,
       description: newTaskDraft.value.description,
-      taskDate: today,
+      taskDate: selectedTaskDate.value,
       xpReward: newTaskDraft.value.xpReward,
     })
     closeTaskComposer()
@@ -320,7 +339,7 @@ async function createManualWeeklyQuest() {
       goalId: selectedGoal.value?.id ?? null,
       title: newWeeklyQuestDraft.value.title,
       description: newWeeklyQuestDraft.value.description,
-      weekStartDate: currentWeekStartDate,
+      weekStartDate: currentWeekStartDate.value,
       xpReward: newWeeklyQuestDraft.value.xpReward,
     })
     closeWeeklyQuestComposer()
@@ -380,7 +399,12 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
         <header class="topbar">
           <div class="brand-mark"><span>Q</span><strong>QuestLog</strong></div>
           <div class="topbar-actions">
-            <span class="date-pill">{{ today }}</span>
+            <div class="date-controls" aria-label="Dashboard quest date">
+              <button class="date-step-button" type="button" :disabled="actionPending || loading" aria-label="Previous quest date" @click="moveTaskDate(-1)">&lt;</button>
+              <input v-model="selectedTaskDate" type="date" aria-label="Dashboard quest date" :disabled="actionPending || loading" @change="loadDashboard" />
+              <button class="date-step-button" type="button" :disabled="actionPending || loading" aria-label="Next quest date" @click="moveTaskDate(1)">&gt;</button>
+              <button class="date-today-button" type="button" :disabled="actionPending || loading || isTodaySelected" @click="selectToday">Today</button>
+            </div>
             <button v-if="authEnabled && !authState.authenticated" class="mini-button" type="button" @click="login">Log in</button>
             <button v-if="authEnabled && authState.authenticated" class="mini-button" type="button" @click="logout">Log out</button>
           </div>
@@ -476,7 +500,7 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
 
             <main class="quest-board">
               <div class="board-header">
-                <div><p class="eyebrow">{{ today }} / SYSTEM BOARD</p><h2>Today&apos;s quests</h2></div>
+                <div><p class="eyebrow">{{ selectedTaskDate }} / WEEK OF {{ currentWeekStartDate }}</p><h2>{{ isTodaySelected ? "Today's quests" : 'Selected day quests' }}</h2></div>
                 <div class="board-tools">
                   <div class="composer-buttons">
                     <button class="text-button add-task-button" type="button" @click="openTaskComposer">Add daily quest</button>
@@ -629,6 +653,40 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
 </template>
 
 <style scoped>
+.date-controls {
+  display: grid;
+  grid-template-columns: 38px minmax(144px, 172px) 38px auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.date-controls input {
+  min-height: 42px;
+  padding: 9px 11px;
+  border-radius: 999px;
+  color: var(--deep);
+  font: 800 12px 'DM Mono', monospace;
+}
+
+.date-step-button,
+.date-today-button {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--deep);
+  background: rgba(255, 255, 255, .72);
+  font: 900 12px 'DM Mono', monospace;
+}
+
+.date-step-button {
+  width: 38px;
+  padding: 0;
+}
+
+.date-today-button {
+  padding: 0 13px;
+}
+
 .goal-progress-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -698,6 +756,11 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
 }
 
 @media (max-width: 700px) {
+  .date-controls {
+    width: 100%;
+    grid-template-columns: 38px minmax(0, 1fr) 38px auto;
+  }
+
   .raid-actions {
     width: 100%;
   }
