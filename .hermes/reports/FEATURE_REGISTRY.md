@@ -41,10 +41,11 @@ This registry counts only concrete QuestLog features that were actually implemen
 - [x] Frontend Quest board manual weekly quest composer creates a BFF-persisted weekly milestone for the selected goal and dashboard week.
 - [x] Frontend dashboard date selector reloads quests for a selected day and applies that date to generated and manual quest creation.
 - [x] Frontend Boss tab shows recent raid attempt history with outcome, damage, remaining HP, and attempt time.
+- [x] Backend raid combat damage is isolated in a tested deterministic policy used by staged raid attacks.
 
 ## Count
 
-Current verified feature count: 37 / 1000
+Current verified feature count: 38 / 1000
 
 ## Pending verification
 

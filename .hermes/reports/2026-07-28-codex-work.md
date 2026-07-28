@@ -98,3 +98,33 @@
 
 - Browser visual verification was attempted, but the in-app Browser connector reported that `iab` was unavailable in this session.
 - Backend and BFF tests were not rerun because this increment only changed frontend code and consumed fields already returned by the existing dashboard API.
+
+---
+
+## Additional autonomous run - raid combat policy
+
+### Summary
+
+- Extracted staged raid damage calculation from `RaidService` into a dedicated backend `RaidCombatPolicy`.
+- Preserved the current deterministic formula while making combat scaling and HP capping directly testable without a database.
+- Updated the verified feature registry from 37 to 38 without adding placeholder counts.
+
+### Files changed
+
+- `apps/quest-log-be/src/main/java/com/als98/questlog/be/raid/RaidCombatPolicy.java`
+- `apps/quest-log-be/src/main/java/com/als98/questlog/be/raid/RaidService.java`
+- `apps/quest-log-be/src/test/java/com/als98/questlog/be/raid/RaidCombatPolicyTests.java`
+- `.hermes/reports/FEATURE_REGISTRY.md`
+- `.hermes/reports/2026-07-28-codex-work.md`
+
+### Verification
+
+- `cd C:/hermes/QuestLog/apps/quest-log-be && ./mvnw.cmd test -Dtest=RaidCombatPolicyTests`
+  - Passed: 2 tests.
+- `cd C:/hermes/QuestLog/apps/quest-log-be && ./mvnw.cmd package -DskipTests`
+  - Passed: backend compile/package check.
+
+### Blockers and next steps
+
+- Full backend integration tests were not rerun because Docker/Testcontainers availability was already blocked in this session.
+- Next useful step is a progression policy extraction or Docker-backed verification of pending staged raid/progression features.

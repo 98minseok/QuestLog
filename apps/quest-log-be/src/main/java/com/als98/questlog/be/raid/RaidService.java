@@ -14,13 +14,16 @@ public class RaidService {
 
     private final JdbcTemplate jdbcTemplate;
     private final CharacterProgressionRepository progressionRepository;
+    private final RaidCombatPolicy combatPolicy;
 
     public RaidService(
             JdbcTemplate jdbcTemplate,
-            CharacterProgressionRepository progressionRepository
+            CharacterProgressionRepository progressionRepository,
+            RaidCombatPolicy combatPolicy
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.progressionRepository = progressionRepository;
+        this.combatPolicy = combatPolicy;
     }
 
     @Transactional
@@ -84,11 +87,13 @@ public class RaidService {
         }
 
         CharacterStats stats = currentStats(userId);
-        int damage = Math.max(1, 40 + stats.level() * 15 + stats.strength() * 10 + stats.vitality() * 5);
-        int damageApplied = Math.min(damage, attempt.bossRemainingHp());
-        int totalDamage = attempt.damageDealt() + damageApplied;
-        int remainingHp = Math.max(attempt.bossRemainingHp() - damageApplied, 0);
-        String status = remainingHp == 0 ? "CLEARED" : "IN_PROGRESS";
+        RaidCombatPolicy.RaidAttackOutcome outcome = combatPolicy.attack(
+                stats.level(),
+                stats.strength(),
+                stats.vitality(),
+                attempt.damageDealt(),
+                attempt.bossRemainingHp()
+        );
         jdbcTemplate.update(
                 """
                 UPDATE raid_attempts
@@ -99,15 +104,15 @@ public class RaidService {
                 WHERE id = ?
                   AND user_id = ?
                 """,
-                status,
-                totalDamage,
-                remainingHp,
-                status,
+                outcome.status(),
+                outcome.totalDamage(),
+                outcome.bossRemainingHp(),
+                outcome.status(),
                 raidAttemptId,
                 userId
         );
 
-        if ("CLEARED".equals(status)) {
+        if ("CLEARED".equals(outcome.status())) {
             CharacterProgression progression =
                     progressionRepository.addExperience(
                             userId,
@@ -117,9 +122,9 @@ public class RaidService {
                     );
             return result(
                     attempt,
-                    status,
-                    totalDamage,
-                    remainingHp,
+                    outcome.status(),
+                    outcome.totalDamage(),
+                    outcome.bossRemainingHp(),
                     attempt.xpReward(),
                     progression.totalXp(),
                     progression.level(),
@@ -130,9 +135,9 @@ public class RaidService {
 
         return result(
                 attempt,
-                status,
-                totalDamage,
-                remainingHp,
+                outcome.status(),
+                outcome.totalDamage(),
+                outcome.bossRemainingHp(),
                 0,
                 stats.totalXp(),
                 stats.level(),
