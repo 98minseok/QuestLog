@@ -315,6 +315,59 @@ describe('App dashboard lifecycle', () => {
     expect(wrapper.text()).toContain('Slime Sovereign cleared. +50 XP')
   })
 
+  it('renders recent raid attempt history with outcomes and combat totals', async () => {
+    vi.mocked(fetchDashboard).mockResolvedValue({
+      ...dashboard,
+      raids: [
+        {
+          id: 3,
+          stage: 1,
+          name: 'Slime Sovereign',
+          requiredLevel: 1,
+          maxHp: 100,
+          xpReward: 50,
+          unlocked: true,
+        },
+      ],
+      raidAttempts: [
+        {
+          id: 51,
+          bossRaidId: 3,
+          bossName: 'Slime Sovereign',
+          stage: 1,
+          status: 'CLEARED',
+          damageDealt: 100,
+          bossRemainingHp: 0,
+          startedAt: '2026-06-15T09:00:00Z',
+          completedAt: '2026-06-15T09:03:00Z',
+        },
+        {
+          id: 52,
+          bossRaidId: 3,
+          bossName: 'Slime Sovereign',
+          stage: 1,
+          status: 'FAILED',
+          damageDealt: 70,
+          bossRemainingHp: 30,
+          startedAt: '2026-06-14T09:00:00Z',
+          completedAt: '2026-06-14T09:02:00Z',
+        },
+      ],
+    })
+    const wrapper = mount(App)
+    await flushPromises()
+
+    await wrapper.findAll('button').find((button) => button.text() === 'Boss raid')!.trigger('click')
+
+    expect(wrapper.text()).toContain('RAID HISTORY')
+    expect(wrapper.text()).toContain('2 logged')
+    expect(wrapper.text()).toContain('Stage 1 / Slime Sovereign')
+    expect(wrapper.text()).toContain('CLEARED')
+    expect(wrapper.text()).toContain('WITHDRAWN')
+    expect(wrapper.text()).toContain('100 damage / 0 HP left')
+    expect(wrapper.text()).toContain('70 damage / 30 HP left')
+  })
+
   it('previews, edits, rejects, and accepts selected daily quest recommendations', async () => {
     vi.mocked(fetchRecommendationHistoryRequest).mockResolvedValue([
       {

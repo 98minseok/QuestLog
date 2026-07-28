@@ -141,6 +141,9 @@ const activeAttemptByRaidId = computed(() => new Map(
     .filter((attempt) => attempt.status === 'STARTED' || attempt.status === 'IN_PROGRESS')
     .map((attempt) => [attempt.bossRaidId, attempt]),
 ))
+const recentRaidAttempts = computed(() => [...attempts.value]
+  .sort((left, right) => raidAttemptTimestamp(right) - raidAttemptTimestamp(left))
+  .slice(0, 5))
 const pendingQuestCount = computed(() => selectedGoalDailyTasks.value.filter((task) => task.status === TASK_STATUS.pending).length + weeklyQuests.value.filter((quest) => quest.status === TASK_STATUS.pending).length)
 const recentProgressionEvents = computed(() => progressionEvents.value.slice(0, 4))
 const authEnabled = computed(() => authState.mode === 'keycloak')
@@ -311,6 +314,24 @@ function startWeeklyQuestEdit(quest: WeeklyQuest) { editingWeeklyQuestId.value =
 function cancelWeeklyQuestEdit() { editingWeeklyQuestId.value = null }
 function isPendingWeeklyQuest(quest: WeeklyQuest) { return quest.status === TASK_STATUS.pending }
 function weeklyQuestSourceLabel(quest: WeeklyQuest) { return quest.status === TASK_STATUS.skipped ? 'SKIPPED' : quest.status === TASK_STATUS.completed ? 'COMPLETED' : quest.source === 'SYSTEM' ? 'SYSTEM WEEKLY' : 'MANUAL WEEKLY' }
+function raidAttemptTimestamp(attempt: RaidAttempt) {
+  return Date.parse(attempt.completedAt ?? attempt.startedAt ?? '') || 0
+}
+function formatRaidAttemptTime(attempt: RaidAttempt) {
+  const timestamp = attempt.completedAt ?? attempt.startedAt
+  if (!timestamp) return 'Time unavailable'
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(timestamp))
+}
+function raidAttemptOutcomeLabel(attempt: RaidAttempt) {
+  if (attempt.status === 'CLEARED') return 'CLEARED'
+  if (attempt.status === 'FAILED') return 'WITHDRAWN'
+  return 'ACTIVE'
+}
 
 async function saveTask(task: DailyTask) {
   if (!taskDraft.value.title.trim() || !Number.isInteger(taskDraft.value.xpReward) || taskDraft.value.xpReward < 1 || taskDraft.value.xpReward > 1000) return
@@ -630,6 +651,24 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
                 <span v-else :class="['raid-state', clearedRaidIds.has(raid.id) ? 'cleared' : 'locked']">{{ clearedRaidIds.has(raid.id) ? 'CLEARED' : 'LOCKED' }}</span>
               </div>
             </div>
+            <section class="raid-history" aria-label="Recent raid attempts">
+              <div class="history-heading">
+                <div>
+                  <p class="eyebrow">RAID HISTORY</p>
+                  <h3>Recent attempts</h3>
+                </div>
+                <span>{{ recentRaidAttempts.length }} logged</span>
+              </div>
+              <div v-if="recentRaidAttempts.length > 0" class="raid-history-list">
+                <div v-for="attempt in recentRaidAttempts" :key="attempt.id" class="raid-history-row">
+                  <span :class="['raid-state', attempt.status === 'CLEARED' ? 'cleared' : attempt.status === 'FAILED' ? 'locked' : 'active']">{{ raidAttemptOutcomeLabel(attempt) }}</span>
+                  <strong>Stage {{ attempt.stage }} / {{ attempt.bossName }}</strong>
+                  <small>{{ attempt.damageDealt }} damage / {{ attempt.bossRemainingHp }} HP left</small>
+                  <time :datetime="attempt.completedAt ?? attempt.startedAt">{{ formatRaidAttemptTime(attempt) }}</time>
+                </div>
+              </div>
+              <p v-else class="empty-copy">No raid attempts have been logged yet.</p>
+            </section>
           </section>
         </template>
 
@@ -755,6 +794,65 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
   transition: width .28s ease;
 }
 
+.raid-state.active {
+  color: var(--deep);
+  background: #d9ffc0;
+}
+
+.raid-history {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid rgba(14, 15, 12, .1);
+  border-radius: 26px;
+  background: rgba(255, 255, 255, .64);
+}
+
+.history-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-heading h3 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.history-heading span,
+.raid-history-row small,
+.raid-history-row time {
+  color: var(--muted);
+  font: 800 10px 'DM Mono', monospace;
+}
+
+.raid-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.raid-history-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-top: 1px solid rgba(14, 15, 12, .1);
+}
+
+.raid-history-row strong {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 700px) {
   .date-controls {
     width: 100%;
@@ -771,6 +869,11 @@ onMounted(() => { if (authState.authenticated) void loadDashboard(); else loadin
 
   .boss-hp {
     width: 100%;
+  }
+
+  .raid-history-row {
+    grid-template-columns: 1fr;
+    align-items: start;
   }
 }
 </style>

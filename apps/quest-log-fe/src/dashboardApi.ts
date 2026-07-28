@@ -109,6 +109,8 @@ export type RaidAttempt = {
   status: 'STARTED' | 'IN_PROGRESS' | 'CLEARED' | 'FAILED'
   damageDealt: number
   bossRemainingHp: number
+  startedAt?: string
+  completedAt?: string | null
 }
 
 export type RaidAttemptResult = {
